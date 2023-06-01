@@ -12,6 +12,7 @@
   "author": "Oleksandr Havuka",
   "license": "ISC",
   "devDependencies": {
+    "@types/node": "^20.2.5",
     "@typescript-eslint/eslint-plugin": "^5.59.6",
     "@typescript-eslint/parser": "^5.59.6",
     "eslint": "^8.40.0",
@@ -23,7 +24,7 @@
     "lib"
   ],
   "dependencies": {
-    "aws-sdk": "^2.1386.0",
+    "@aws-sdk/client-s3": "^3.342.0",
     "axios": "^1.4.0",
     "bullmq": "^3.13.4",
     "openai": "^3.2.1",

@@ -1,11 +1,17 @@
-import AWS from 'aws-sdk';
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+  PutBucketLifecycleConfigurationCommand,
+  S3ServiceException,
+} from '@aws-sdk/client-s3';
 import {
   CreateChatCompletionRequestType,
   createChatCompletionRequestSchema,
 } from './schema/CreateChatCompletionRequestSchema';
 
 export class S3Service {
-  private readonly s3: AWS.S3;
+  private readonly client: S3Client;
 
   constructor(
     private readonly env: string,
@@ -13,42 +19,62 @@ export class S3Service {
     private readonly bucketName: string,
     private readonly botName: string,
   ) {
-    AWS.config.update({
-      region: this.region,
-    });
-    this.s3 = new AWS.S3();
-    this.s3.putBucketLifecycleConfiguration(this.getS3LogFileParams());
+    this.client = new S3Client({ region: this.region });
+    const command = new PutBucketLifecycleConfigurationCommand(
+      this.getS3LogFileParams(),
+    );
+    this.client.send(command);
   }
 
   async getFile(filename: string) {
     try {
-      const data = await this.s3
-        .getObject({ Bucket: this.bucketName, Key: filename })
-        .promise();
+      const command = new GetObjectCommand({
+        Bucket: this.bucketName,
+        Key: filename,
+      });
+      const response = await this.client.send(command);
 
-      // Make sure the retrieved object contains data
-      if (!data.Body) {
-        throw new Error('No data in S3 object');
-      }
-
-      return data.Body;
+      return response.Body;
     } catch (err) {
-      console.error(err);
+      if (
+        err instanceof S3ServiceException &&
+        err.$metadata.httpStatusCode == 404
+      ) {
+        return null;
+      }
       throw err;
     }
   }
 
   async getPreheaders(): Promise<CreateChatCompletionRequestType> {
     try {
-      const file = await this.getFile(
-        `${this.botName}/${this.env}/preheaders.json`,
-      );
-      const preheaders = JSON.parse(file.toString());
-      return createChatCompletionRequestSchema.parse(preheaders);
+      const fileName = `${this.botName}/${this.env}/system_messages.json`;
+      const file = await this.getFile(fileName);
+
+      if (file === null || file === undefined) {
+        const errorMessage = `File ${fileName} not found!`;
+        console.error(errorMessage, 'App will be terminated.');
+        await this.logToS3(errorMessage);
+        process.exit(1);
+      }
+
+      const systemMessages = JSON.parse(await file.transformToString());
+      return createChatCompletionRequestSchema.parse(systemMessages);
     } catch (error) {
       console.error(error);
+      await this.logToS3((error as Error).toString());
       throw error;
     }
+  }
+
+  async logToS3(data: string) {
+    const command = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: `${this.botName}/${this.env}/log_errors.txt`,
+      Body: data,
+    });
+
+    await this.client.send(command).catch((err) => console.error(err));
   }
 
   private getS3LogFileParams() {
