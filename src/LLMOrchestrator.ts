@@ -1,4 +1,4 @@
-import { EventHandler, EventManager } from './EventManager';
+import { EventHandler, EventManager, defaultHandler } from './EventManager';
 import { Redis } from 'ioredis';
 import {
   AsyncLLMMiddleware,
@@ -114,6 +114,10 @@ export class LLMOrchestrator {
 
   useComputePreheader(name: string, preheaderComputer: LLMPreheaderComputer) {
     this.ps.use(name, preheaderComputer);
+  }
+
+  useDefaultHandler(eventHandler: defaultHandler) {
+    this.eventManager.useDefault(eventHandler);
   }
 
   useEventHandler(name: string, eventHandler: EventHandler) {

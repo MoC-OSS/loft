@@ -14,6 +14,8 @@ export interface EventHandler {
   priority: 0;
 }
 
+export type defaultHandler = (response: string) => Promise<void>;
+
 export interface TriggeredEvent {
   name: string;
   priority: number;
@@ -21,8 +23,15 @@ export interface TriggeredEvent {
 
 export class EventManager {
   private eventHandlers: Map<string, EventHandler>;
+  private defaultEventHandler: defaultHandler;
 
   constructor() {
+    this.defaultEventHandler = () => {
+      console.error(
+        'No Default Event Handler defined. Please define using useDefaultHandler(response: string): Promise<void>',
+      );
+      process.exit(1);
+    };
     this.eventHandlers = new Map();
   }
 
@@ -33,6 +42,10 @@ export class EventManager {
       );
     }
     this.eventHandlers.set(name, eventHandler);
+  }
+
+  useDefault(eventHandler: defaultHandler) {
+    this.defaultEventHandler = eventHandler;
   }
 
   async executeEventHandlers(response: string): Promise<void> {
@@ -61,6 +74,9 @@ export class EventManager {
 
       await next();
 
+      // if no event handler was triggered, execute the default event handler
+      if (triggeredEvents.length === 0) this.defaultEventHandler(response);
+
       triggeredEvents.sort((a, b) => b.priority - a.priority);
 
       if (triggeredEvents.length > 0) {
@@ -81,4 +97,8 @@ export class EventManager {
       console.error(`Error occurred while executing event handlers: ${error}`);
     }
   }
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
