@@ -10,12 +10,12 @@ import { Job, Queue, Worker } from 'bullmq';
 import { ChatCompletionRequestMessage, Configuration, OpenAIApi } from 'openai';
 import { chatCompletionInputSchema } from './schema/chatCompletionSchema';
 import { HistoryStorage } from './HistoryStorage';
-import { LlmIOManager } from './LlmIOMiddlewareManager';
+import { LlmIOManager } from './LlmIoManager';
 import { PreheaderService } from './preheader/PreheaderService';
 import { PreheaderStorage } from './preheader/PreheaderStorage';
 import { S3Service } from './S3Service';
 
-export class LLMOrchestrator {
+export class LlmOrchestrator {
   private readonly hs: HistoryStorage;
   private readonly ps: PreheaderService;
   private readonly eventManager: EventManager = new EventManager();
@@ -83,8 +83,8 @@ export class LLMOrchestrator {
     });
   }
 
-  public static async createInstance(cfg: Config): Promise<LLMOrchestrator> {
-    const instance = new LLMOrchestrator(cfg);
+  public static async createInstance(cfg: Config): Promise<LlmOrchestrator> {
+    const instance = new LlmOrchestrator(cfg);
     await instance.initialize();
     return instance;
   }
