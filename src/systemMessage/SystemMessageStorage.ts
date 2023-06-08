@@ -1,24 +1,24 @@
 import { Redis, Cluster } from 'ioredis';
 import {
   CreateChatCompletionRequestType,
-  PreheaderType,
+  SystemMessageType,
 } from '../schema/CreateChatCompletionRequestSchema';
 
-export class PreheaderStorage {
+export class SystemMessageStorage {
   private client: Redis | Cluster;
 
   constructor(client: Redis | Cluster) {
     this.client = client;
   }
 
-  public async syncPreheaders(
+  public async syncSystemMessages(
     data: CreateChatCompletionRequestType,
   ): Promise<void> {
     const existingNames: Set<string> = new Set();
     const pipeline = this.client.pipeline();
 
-    // Iterate through the ingested Preheaders and store them in Redis
-    data.preheaders.forEach((p) => {
+    // Iterate through the ingested SystemMessages and store them in Redis
+    data.systemMessages.forEach((p) => {
       pipeline.set(p.name, JSON.stringify(p));
       existingNames.add(p.name);
     });
@@ -26,7 +26,7 @@ export class PreheaderStorage {
     // Retrieve the existing names from Redis
     const storedNames = await this.client.keys('*');
 
-    // Find and remove the preheaders with names that are missing in the received preheaders
+    // Find and remove the SystemMessages with names that are missing in the received SystemMessages
     storedNames.forEach((storedName) => {
       if (!existingNames.has(storedName)) {
         pipeline.del(storedName);
@@ -36,25 +36,27 @@ export class PreheaderStorage {
     await pipeline.exec();
   }
 
-  public async getPreheaderByName(name: string): Promise<PreheaderType> {
+  public async getSystemMessageByName(
+    name: string,
+  ): Promise<SystemMessageType> {
     try {
       const data = await this.client.get(name);
-      const preheader = JSON.parse(data ?? '');
-      return preheader ?? null;
+      const systemMessage = JSON.parse(data ?? '');
+      return systemMessage ?? null;
     } catch (error) {
       console.error(error);
       throw error;
     }
   }
 
-  public async updatePreheaderByName(
+  public async updateSystemMessageByName(
     name: string,
-    newPreheader: string,
+    newSystemMessage: string,
   ): Promise<void> {
-    await this.client.set(name, newPreheader);
+    await this.client.set(name, newSystemMessage);
   }
 
-  public async deletePreheaderByName(name: string): Promise<void> {
+  public async deleteSystemMessageByName(name: string): Promise<void> {
     await this.client.del(name);
   }
 }

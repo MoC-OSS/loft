@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 export const createChatCompletionRequestSchema = z.object({
-  preheaders: z.array(
+  systemMessages: z.array(
     z.object({
       name: z.string(),
-      preheader: z.string(),
+      systemMessage: z.string(),
       modelPreset: z.object({
         model: z
           .string()
@@ -91,5 +91,5 @@ export type CreateChatCompletionRequestType = z.infer<
   typeof createChatCompletionRequestSchema
 >;
 
-export type PreheaderType =
-  CreateChatCompletionRequestType['preheaders'][number];
+export type SystemMessageType =
+  CreateChatCompletionRequestType['systemMessages'][number];

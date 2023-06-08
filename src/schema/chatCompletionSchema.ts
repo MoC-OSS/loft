@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const chatCompletionInputSchema = z.object({
-  botName: z.string(),
+  systemMessage: z.string(),
   message: z.string(),
   chatId: z.string(),
   intent: z.string(),

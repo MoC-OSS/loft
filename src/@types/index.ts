@@ -1,4 +1,4 @@
-import { PreheaderType } from '../schema/CreateChatCompletionRequestSchema';
+import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 
 export interface InputData {
   botName: string;
@@ -12,7 +12,7 @@ export interface Config {
   redisHost: string;
   redisPort: number;
   bullMqDb: number;
-  preheaderDb: number;
+  systemMessageDb: number;
   historyDb: number;
   openAiKey: string;
   s3BucketName: string;
@@ -26,7 +26,7 @@ export type AsyncLLMMiddleware = (
 ) => Promise<void>;
 export type LLMMiddlewares = Map<string, AsyncLLMMiddleware>;
 
-export type LLMPreheaderComputer = (
-  input: PreheaderType,
-) => Promise<PreheaderType>;
-export type LLMPreheaderComputers = Map<string, LLMPreheaderComputer>;
+export type SystemMessageComputer = (
+  input: SystemMessageType,
+) => Promise<SystemMessageType>;
+export type SystemMessageComputers = Map<string, SystemMessageComputer>;

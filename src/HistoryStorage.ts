@@ -3,11 +3,11 @@ import {
   ChatCompletionRequestMessage,
   ChatCompletionResponseMessage,
 } from 'openai';
-import { PreheaderType } from './schema/CreateChatCompletionRequestSchema';
+import { SystemMessageType } from './schema/CreateChatCompletionRequestSchema';
 
 export interface SessionData {
   sessionId: string;
-  modelPreset: PreheaderType['modelPreset'];
+  modelPreset: SystemMessageType['modelPreset'];
   messages: ChatCompletionRequestMessage[];
   createdAt: Date;
   updatedAt: Date;

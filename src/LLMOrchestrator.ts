@@ -4,20 +4,21 @@ import {
   AsyncLLMMiddleware,
   Config,
   InputData,
-  LLMPreheaderComputer,
+  SystemMessageComputer,
 } from './@types/index';
 import { Job, Queue, Worker } from 'bullmq';
 import { ChatCompletionRequestMessage, Configuration, OpenAIApi } from 'openai';
 import { chatCompletionInputSchema } from './schema/chatCompletionSchema';
 import { HistoryStorage } from './HistoryStorage';
 import { LlmIOManager } from './LlmIoManager';
-import { PreheaderService } from './preheader/PreheaderService';
-import { PreheaderStorage } from './preheader/PreheaderStorage';
+
 import { S3Service } from './S3Service';
+import { SystemMessageService } from './systemMessage/SystemMessageService';
+import { SystemMessageStorage } from './systemMessage/SystemMessageStorage';
 
 export class LlmOrchestrator {
   private readonly hs: HistoryStorage;
-  private readonly ps: PreheaderService;
+  private readonly ps: SystemMessageService;
   private readonly eventManager: EventManager = new EventManager();
   private readonly llmIOManager: LlmIOManager = new LlmIOManager();
   private readonly openai: OpenAIApi;
@@ -31,19 +32,19 @@ export class LlmOrchestrator {
     });
     this.openai = new OpenAIApi(openAIApiConfig);
 
-    const preheaderClient = new Redis({
+    const systemMessageClient = new Redis({
       host: cfg.redisHost,
       port: cfg.redisPort,
-      db: cfg.preheaderDb,
+      db: cfg.systemMessageDb,
     });
-    const preheaderStorage = new PreheaderStorage(preheaderClient);
+    const systemMessageStorage = new SystemMessageStorage(systemMessageClient);
     const s3 = new S3Service(
       cfg.nodeEnv,
       cfg.awsRegion,
       cfg.s3BucketName,
       cfg.botName,
     );
-    this.ps = new PreheaderService(preheaderStorage, s3);
+    this.ps = new SystemMessageService(systemMessageStorage, s3);
 
     const historyClient = new Redis({
       host: cfg.redisHost,
@@ -90,8 +91,8 @@ export class LlmOrchestrator {
   }
 
   private async initialize(): Promise<void> {
-    await this.ps.syncPreheaders();
-    this.completionWorker.run(); // run the worker after sync preheaders
+    await this.ps.syncSystemMessages();
+    this.completionWorker.run(); // run the worker after sync systemMessages
   }
 
   public async chatCompletion(data: InputData) {
@@ -108,12 +109,12 @@ export class LlmOrchestrator {
     }
   }
 
-  async syncPreheaders() {
-    await this.ps.syncPreheaders();
+  async syncSystemMessages() {
+    await this.ps.syncSystemMessages();
   }
 
-  useComputePreheader(name: string, preheaderComputer: LLMPreheaderComputer) {
-    this.ps.use(name, preheaderComputer);
+  useComputeSystemMessage(name: string, handler: SystemMessageComputer) {
+    this.ps.use(name, handler);
   }
 
   useDefaultHandler(eventHandler: defaultHandler) {
@@ -133,21 +134,24 @@ export class LlmOrchestrator {
   }
 
   private async chatCompletionProcessor(job: Job | { data: InputData }) {
-    const { botName, message, chatId, intent } = job.data;
+    const { systemMessageName, message, chatId, intent } = job.data;
     console.log(`chatCompletionProcessor: ${chatId} ${message}`);
+
+    const processedUserMsg =
+      await this.llmIOManager.executeInputMiddlewareChain(message);
 
     const newMessage: ChatCompletionRequestMessage = {
       role: 'user',
-      content: message,
+      content: processedUserMsg,
     };
 
     if (await this.hs.isExists(job.data.chatId)) {
       await this.hs.updateMessages(job.data.chatId, newMessage);
     } else {
-      const phData = await this.ps.computePreheader(botName);
+      const phData = await this.ps.computeSystemMessage(systemMessageName);
       const systemMessage: ChatCompletionRequestMessage = {
         role: 'system',
-        content: phData.preheader,
+        content: phData.systemMessage,
       };
       await this.hs.createSession(job.data.chatId, phData.modelPreset, [
         systemMessage,
@@ -157,22 +161,20 @@ export class LlmOrchestrator {
 
     const chatSession = await this.hs.getSession(job.data.chatId);
 
-    this.llmIOManager.executeInputMiddlewareChain(
-      JSON.stringify(chatSession.messages),
-    );
-
     const chatCompletion = await this.openai.createChatCompletion({
       model: chatSession.modelPreset.model,
       messages: chatSession.messages,
     });
     const ccm = chatCompletion.data.choices[0].message; // ccm = chat completion message (response)
 
-    const llmResponse = ccm?.content || '';
-    this.llmIOManager.executeOutputMiddlewareChain(llmResponse);
+    let llmResponse = ccm?.content || '';
+    llmResponse = await this.llmIOManager.executeOutputMiddlewareChain(
+      llmResponse,
+    );
 
     if (ccm) {
       await this.hs.updateMessages(job.data.chatId, ccm);
-      this.eventManager.executeEventHandlers(ccm?.content);
+      this.eventManager.executeEventHandlers(llmResponse);
     } else console.error('LLM API response is empty');
   }
 }

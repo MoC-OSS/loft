@@ -46,7 +46,7 @@ export class S3Service {
     }
   }
 
-  async getPreheaders(): Promise<CreateChatCompletionRequestType> {
+  async getSystemMessages(): Promise<CreateChatCompletionRequestType> {
     try {
       const fileName = `${this.botName}/${this.env}/system_messages.json`;
       const file = await this.getFile(fileName);
