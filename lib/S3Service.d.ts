@@ -8,7 +8,7 @@ export declare class S3Service {
     private readonly client;
     constructor(env: string, region: string, bucketName: string, botName: string);
     getFile(filename: string): Promise<import("@aws-sdk/types").SdkStream<import("stream").Readable | ReadableStream<any> | Blob | undefined> | null | undefined>;
-    getPreheaders(): Promise<CreateChatCompletionRequestType>;
+    getSystemMessages(): Promise<CreateChatCompletionRequestType>;
     logToS3(data: string): Promise<void>;
     private getS3LogFileParams;
 }

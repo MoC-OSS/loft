@@ -1,5 +1,5 @@
 import { EventHandler, defaultHandler } from './EventManager';
-import { AsyncLLMMiddleware, Config, InputData, LLMPreheaderComputer } from './@types/index';
+import { AsyncLLMMiddleware, Config, InputData, SystemMessageComputer } from './@types/index';
 export declare class LlmOrchestrator {
     private readonly cfg;
     private readonly hs;
@@ -13,8 +13,8 @@ export declare class LlmOrchestrator {
     static createInstance(cfg: Config): Promise<LlmOrchestrator>;
     private initialize;
     chatCompletion(data: InputData): Promise<void>;
-    syncPreheaders(): Promise<void>;
-    useComputePreheader(name: string, preheaderComputer: LLMPreheaderComputer): void;
+    syncSystemMessages(): Promise<void>;
+    useComputeSystemMessage(name: string, handler: SystemMessageComputer): void;
     useDefaultHandler(eventHandler: defaultHandler): void;
     useEventHandler(name: string, eventHandler: EventHandler): void;
     useLLMInput(name: string, middleware: AsyncLLMMiddleware): void;

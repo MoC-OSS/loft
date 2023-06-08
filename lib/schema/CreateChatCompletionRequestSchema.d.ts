@@ -1,8 +1,8 @@
 import { z } from 'zod';
 export declare const createChatCompletionRequestSchema: z.ZodObject<{
-    preheaders: z.ZodArray<z.ZodObject<{
+    systemMessages: z.ZodArray<z.ZodObject<{
         name: z.ZodString;
-        preheader: z.ZodString;
+        systemMessage: z.ZodString;
         modelPreset: z.ZodObject<{
             model: z.ZodString;
             temperature: z.ZodOptional<z.ZodNumber>;
@@ -42,7 +42,7 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
         }>;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        preheader: string;
+        systemMessage: string;
         modelPreset: {
             model: string;
             temperature?: number | undefined;
@@ -58,7 +58,7 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
         };
     }, {
         name: string;
-        preheader: string;
+        systemMessage: string;
         modelPreset: {
             model: string;
             temperature?: number | undefined;
@@ -74,9 +74,9 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
         };
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
-    preheaders: {
+    systemMessages: {
         name: string;
-        preheader: string;
+        systemMessage: string;
         modelPreset: {
             model: string;
             temperature?: number | undefined;
@@ -92,9 +92,9 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
         };
     }[];
 }, {
-    preheaders: {
+    systemMessages: {
         name: string;
-        preheader: string;
+        systemMessage: string;
         modelPreset: {
             model: string;
             temperature?: number | undefined;
@@ -111,5 +111,5 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
     }[];
 }>;
 export type CreateChatCompletionRequestType = z.infer<typeof createChatCompletionRequestSchema>;
-export type PreheaderType = CreateChatCompletionRequestType['preheaders'][number];
+export type SystemMessageType = CreateChatCompletionRequestType['systemMessages'][number];
 //# sourceMappingURL=CreateChatCompletionRequestSchema.d.ts.map
