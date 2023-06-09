@@ -1,5 +1,4 @@
 import { EventHandler, EventManager, defaultHandler } from './EventManager';
-import { Redis } from 'ioredis';
 import {
   AsyncLLMMiddleware,
   Config,
@@ -11,14 +10,9 @@ import { ChatCompletionRequestMessage, Configuration, OpenAIApi } from 'openai';
 import { chatCompletionInputSchema } from './schema/chatCompletionSchema';
 import { HistoryStorage } from './HistoryStorage';
 import { LlmIOManager } from './LlmIoManager';
-
-import { S3Service } from './S3Service';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
-import { SystemMessageStorage } from './systemMessage/SystemMessageStorage';
 
 export class LlmOrchestrator {
-  private readonly hs: HistoryStorage;
-  private readonly ps: SystemMessageService;
   private readonly eventManager: EventManager = new EventManager();
   private readonly llmIOManager: LlmIOManager = new LlmIOManager();
   private readonly openai: OpenAIApi;
@@ -26,38 +20,22 @@ export class LlmOrchestrator {
   private readonly completionQueue!: Queue;
   private readonly completionWorker!: Worker;
 
-  private constructor(private readonly cfg: Config) {
-    const openAIApiConfig = new Configuration({
-      apiKey: cfg.openAiKey,
-    });
-    this.openai = new OpenAIApi(openAIApiConfig);
-
-    const systemMessageClient = new Redis({
-      host: cfg.redisHost,
-      port: cfg.redisPort,
-      db: cfg.systemMessageDb,
-    });
-    const systemMessageStorage = new SystemMessageStorage(systemMessageClient);
-    const s3 = new S3Service(
-      cfg.nodeEnv,
-      cfg.awsRegion,
-      cfg.s3BucketName,
-      cfg.botName,
+  private constructor(
+    private readonly cfg: Config,
+    private readonly sms: SystemMessageService,
+    private readonly hs: HistoryStorage,
+  ) {
+    this.openai = new OpenAIApi(
+      new Configuration({
+        apiKey: cfg.openAiKey,
+      }),
     );
-    this.ps = new SystemMessageService(systemMessageStorage, s3);
-
-    const historyClient = new Redis({
-      host: cfg.redisHost,
-      port: cfg.redisPort,
-      db: cfg.historyDb,
-    });
-    this.hs = new HistoryStorage(historyClient, 24 * 60 * 60);
 
     this.completionQueue = new Queue('chatCompletionQueue', {
       connection: {
-        host: cfg.redisHost,
-        port: cfg.redisPort,
-        db: cfg.bullMqDb,
+        host: this.cfg.redisHost,
+        port: this.cfg.redisPort,
+        db: this.cfg.bullMqDb,
       },
     });
 
@@ -66,14 +44,14 @@ export class LlmOrchestrator {
       async (job) => this.chatCompletionProcessor(job),
       {
         limiter: {
-          max: 1,
-          duration: 1000,
+          max: cfg.openAiRateLimiter.max,
+          duration: cfg.openAiRateLimiter.duration,
         },
-        concurrency: 1,
+        concurrency: cfg.openAiRateLimiter.concurrency,
         connection: {
-          host: cfg.redisHost,
-          port: cfg.redisPort,
-          db: cfg.bullMqDb,
+          host: this.cfg.redisHost,
+          port: this.cfg.redisPort,
+          db: this.cfg.bullMqDb,
         },
         autorun: false,
       },
@@ -84,14 +62,18 @@ export class LlmOrchestrator {
     });
   }
 
-  public static async createInstance(cfg: Config): Promise<LlmOrchestrator> {
-    const instance = new LlmOrchestrator(cfg);
+  public static async createInstance(
+    cfg: Config,
+    sms: SystemMessageService,
+    hs: HistoryStorage,
+  ): Promise<LlmOrchestrator> {
+    const instance = new LlmOrchestrator(cfg, sms, hs);
     await instance.initialize();
     return instance;
   }
 
   private async initialize(): Promise<void> {
-    await this.ps.syncSystemMessages();
+    await this.sms.syncSystemMessages();
     this.completionWorker.run(); // run the worker after sync systemMessages
   }
 
@@ -110,11 +92,11 @@ export class LlmOrchestrator {
   }
 
   async syncSystemMessages() {
-    await this.ps.syncSystemMessages();
+    await this.sms.syncSystemMessages();
   }
 
   useComputeSystemMessage(name: string, handler: SystemMessageComputer) {
-    this.ps.use(name, handler);
+    this.sms.use(name, handler);
   }
 
   useDefaultHandler(eventHandler: defaultHandler) {
@@ -148,7 +130,7 @@ export class LlmOrchestrator {
     if (await this.hs.isExists(job.data.chatId)) {
       await this.hs.updateMessages(job.data.chatId, newMessage);
     } else {
-      const phData = await this.ps.computeSystemMessage(systemMessageName);
+      const phData = await this.sms.computeSystemMessage(systemMessageName);
       const systemMessage: ChatCompletionRequestMessage = {
         role: 'system',
         content: phData.systemMessage,

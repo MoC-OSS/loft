@@ -12,12 +12,27 @@ export interface Config {
   redisHost: string;
   redisPort: number;
   bullMqDb: number;
-  systemMessageDb: number;
-  historyDb: number;
   openAiKey: string;
-  s3BucketName: string;
-  awsRegion: string;
-  botName: string;
+  openAiRateLimiter: {
+    /**
+     * Max number of jobs to process in the time period
+     * specified in `duration`.
+     */
+    max: number;
+    /**
+     * Time in milliseconds. During this time, a maximum
+     * of `max` jobs will be processed.
+     */
+    duration: number;
+    /**
+     * Amount of jobs that a single worker is allowed to work on
+     * in parallel.
+     *
+     * @default 1
+     * @see {@link https://docs.bullmq.io/guide/workers/concurrency}
+     */
+    concurrency: number;
+  };
 }
 
 export type AsyncLLMMiddleware = (

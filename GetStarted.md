@@ -12,18 +12,57 @@ This documentation provides a step-by-step guide on setting up and using the LLM
 2. Next, create an instance of the LLM-Orchestrator, passing the `Config` object to the `LlmOrchestrator.createInstance()` method.
 
     ```js
-    const llm = await LlmOrchestrator.createInstance({
-          nodeEnv: cfg.NODE_ENV,
-          redisHost: cfg.REDIS_HOST,
-          redisPort: cfg.REDIS_PORT,
-          bullMqDb: cfg.BULLMQ_DB,
-          systemMessageDb: cfg.SYSTEM_MESSAGE_DB,
-          historyDb: cfg.HISTORY_DB,
-          openAiKey: cfg.OPENAI_API_KEY,
-          botName: cfg.BOT_NAME,
-          s3BucketName: cfg.S3_BUCKET_NAME,
-          awsRegion: cfg.S3_REGION,
-        } as Config);
+    import {
+      LlmOrchestrator,
+      Config,
+      SystemMessageType,
+      EventHandler,
+      SystemMessageStorage,
+      SystemMessageService,
+      HistoryStorage,
+      S3Service,
+    } from "llm-orchestrator";
+    import { cfg } from "./config/env";
+
+    const systemMessageClient = new Redis({
+      host: cfg.REDIS_HOST,
+      port: cfg.REDIS_PORT,
+      db: cfg.SYSTEM_MESSAGE_DB,
+    });
+    const systemMessageStorage = new SystemMessageStorage(systemMessageClient);
+
+    const s3 = new S3Service(
+      cfg.NODE_ENV,
+      cfg.S3_REGION,
+      cfg.S3_BUCKET_NAME,
+      cfg.BOT_NAME
+    );
+
+    const sms = new SystemMessageService(systemMessageStorage, s3);
+
+    const historyClient = new Redis({
+      host: cfg.REDIS_HOST,
+      port: cfg.REDIS_PORT,
+      db: cfg.HISTORY_DB,
+    });
+    const hs = new HistoryStorage(historyClient, 24 * 60 * 60);
+
+    llm = await LlmOrchestrator.createInstance(
+      {
+        nodeEnv: cfg.NODE_ENV,
+        redisHost: cfg.REDIS_HOST,
+        redisPort: cfg.REDIS_PORT,
+        bullMqDb: cfg.BULLMQ_DB,
+        openAiKey: cfg.OPENAI_API_KEY,
+        openAiRateLimiter: {
+          max: cfg.OPENAI_MAX_REQ_BY_DURATION,
+          duration: cfg.OPENAI_DURATION,
+          concurrency: cfg.OPENAI_CONCURRENCY,
+        },
+      } as Config,
+      sms,
+      hs
+    );
     ```
 
 ## Requirements
@@ -140,11 +179,9 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
     ```
 
 ## Soon To Be:
-1. [ ] ability to resend message to LLM from LLM IO Middlewares and EventHandlers. 
+1. [ ] ability to resend message to LLM from LLM IO Middlewares and EventHandlers. And add methods for make LLM API calls with rate limit.
 2. [ ] Using parts of libraries from LangChainJS
-
-
-3. [ ] External dependency injection
+3. [x] External dependency injection
 4. [x] write docs
 5. [x] create example project
 6. [ ] connect Langchain history
