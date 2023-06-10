@@ -38,11 +38,12 @@ export class SystemMessageStorage {
 
   public async getSystemMessageByName(
     name: string,
-  ): Promise<SystemMessageType> {
+  ): Promise<SystemMessageType | null> {
     try {
       const data = await this.client.get(name);
-      const systemMessage = JSON.parse(data ?? '');
-      return systemMessage ?? null;
+      if (data === null || data === undefined) return null;
+
+      return JSON.parse(data ?? '');
     } catch (error) {
       console.error(error);
       throw error;

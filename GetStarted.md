@@ -185,5 +185,3 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
 4. [x] write docs
 5. [x] create example project
 6. [ ] connect Langchain history
-
-

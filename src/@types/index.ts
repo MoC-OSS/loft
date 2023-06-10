@@ -1,7 +1,7 @@
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 
 export interface InputData {
-  botName: string;
+  systemMessage: string;
   message: string;
   chatId: string;
   intent: string;

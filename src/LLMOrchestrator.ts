@@ -6,9 +6,14 @@ import {
   SystemMessageComputer,
 } from './@types/index';
 import { Job, Queue, Worker } from 'bullmq';
-import { ChatCompletionRequestMessage, Configuration, OpenAIApi } from 'openai';
+import {
+  ChatCompletionRequestMessage,
+  ChatCompletionResponseMessage,
+  Configuration,
+  OpenAIApi,
+} from 'openai';
 import { chatCompletionInputSchema } from './schema/chatCompletionSchema';
-import { HistoryStorage } from './HistoryStorage';
+import { HistoryStorage, SessionData } from './HistoryStorage';
 import { LlmIOManager } from './LlmIoManager';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 
@@ -19,6 +24,8 @@ export class LlmOrchestrator {
 
   private readonly completionQueue!: Queue;
   private readonly completionWorker!: Worker;
+  private readonly llmApiCallQueue!: Queue;
+  private readonly llmApiCallWorker!: Worker;
 
   private constructor(
     private readonly cfg: Config,
@@ -43,11 +50,32 @@ export class LlmOrchestrator {
       'chatCompletionQueue',
       async (job) => this.chatCompletionProcessor(job),
       {
-        limiter: {
-          max: cfg.openAiRateLimiter.max,
-          duration: cfg.openAiRateLimiter.duration,
+        connection: {
+          host: this.cfg.redisHost,
+          port: this.cfg.redisPort,
+          db: this.cfg.bullMqDb,
         },
-        concurrency: cfg.openAiRateLimiter.concurrency,
+        autorun: false,
+      },
+    );
+
+    this.llmApiCallQueue = new Queue('llmApiCallQueue', {
+      connection: {
+        host: this.cfg.redisHost,
+        port: this.cfg.redisPort,
+        db: this.cfg.bullMqDb,
+      },
+    });
+
+    this.llmApiCallWorker = new Worker(
+      'llmApiCallQueue',
+      async (job) => this.llmApiCallProcessor(job),
+      {
+        limiter: {
+          max: this.cfg.openAiRateLimiter.max,
+          duration: this.cfg.openAiRateLimiter.duration,
+        },
+        concurrency: this.cfg.openAiRateLimiter.concurrency,
         connection: {
           host: this.cfg.redisHost,
           port: this.cfg.redisPort,
@@ -75,17 +103,34 @@ export class LlmOrchestrator {
   private async initialize(): Promise<void> {
     await this.sms.syncSystemMessages();
     this.completionWorker.run(); // run the worker after sync systemMessages
+    this.llmApiCallWorker.run();
   }
 
   public async chatCompletion(data: InputData) {
     try {
       const chatData = chatCompletionInputSchema.parse(data);
-      this.completionQueue.add('chatCompletionInput', chatData, {
-        removeOnComplete: true,
-        attempts: 3,
-      });
+      await this.completionQueue.add(
+        `input:process:chat:${data.chatId}`,
+        chatData,
+        {
+          removeOnComplete: true,
+          attempts: 3,
+        },
+      );
+    } catch (error) {
+      console.log(error);
+    }
+  }
 
-      return;
+  public async callAgain(data: {
+    chatId: string;
+    message: ChatCompletionResponseMessage | ChatCompletionRequestMessage;
+  }) {
+    const { chatId, message } = data;
+    try {
+      this.hs.replaceLastUserMessage(chatId, message);
+      const session = await this.hs.getSession(chatId);
+      await this.llmApiCallQueue.add(`input:recall:llm:${chatId}`, session);
     } catch (error) {
       console.log(error);
     }
@@ -115,10 +160,40 @@ export class LlmOrchestrator {
     this.llmIOManager.useOutput(name, middleware);
   }
 
-  private async chatCompletionProcessor(job: Job | { data: InputData }) {
-    const { systemMessageName, message, chatId, intent } = job.data;
-    console.log(`chatCompletionProcessor: ${chatId} ${message}`);
+  private async llmApiCallProcessor(
+    job: Job | { data: InputData; session: SessionData },
+  ) {
+    const {
+      data: { chatId },
+      session: {
+        messages,
+        modelPreset: { model },
+      },
+    } = job.data;
 
+    const chatCompletion = await this.openai.createChatCompletion({
+      model,
+      messages,
+    });
+
+    const ccm = chatCompletion.data.choices[0].message; // ccm = chat completion message (response)
+
+    if (ccm === undefined) throw new Error('LLM API response is empty');
+
+    let llmResponse = await this.llmIOManager.executeOutputMiddlewareChain(
+      ccm.content,
+    );
+    await this.hs.updateMessages(chatId, ccm); // ! separate to other queue for prevent history update with not satisfied LLM response
+    await this.eventManager.executeEventHandlers(llmResponse); // ! add context to event manager
+  }
+
+  private async chatCompletionProcessor(job: Job | { data: InputData }) {
+    const {
+      systemMessage: systemMessageName,
+      message,
+      chatId,
+      intent,
+    } = job.data;
     const processedUserMsg =
       await this.llmIOManager.executeInputMiddlewareChain(message);
 
@@ -143,20 +218,13 @@ export class LlmOrchestrator {
 
     const chatSession = await this.hs.getSession(job.data.chatId);
 
-    const chatCompletion = await this.openai.createChatCompletion({
-      model: chatSession.modelPreset.model,
-      messages: chatSession.messages,
-    });
-    const ccm = chatCompletion.data.choices[0].message; // ccm = chat completion message (response)
-
-    let llmResponse = ccm?.content || '';
-    llmResponse = await this.llmIOManager.executeOutputMiddlewareChain(
-      llmResponse,
+    await this.llmApiCallQueue.add(
+      `llm:call:chat:${job.data.chatId}`,
+      {
+        data: job.data,
+        session: chatSession,
+      },
+      { removeOnComplete: true, attempts: 3 },
     );
-
-    if (ccm) {
-      await this.hs.updateMessages(job.data.chatId, ccm);
-      this.eventManager.executeEventHandlers(llmResponse);
-    } else console.error('LLM API response is empty');
   }
 }

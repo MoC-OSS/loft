@@ -57,16 +57,43 @@ export class HistoryStorage {
     sessionId: string,
     newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage,
   ): Promise<void> {
-    const sessionKey = this.getSessionKey(sessionId);
-    const sessionData = await this.getSession(sessionId);
-    sessionData.messages.push(newMessage);
-    sessionData.updatedAt = new Date();
-    await this.client.set(
-      sessionKey,
-      JSON.stringify(sessionData),
-      'EX',
-      this.sessionTtl,
-    );
+    try {
+      const sessionKey = this.getSessionKey(sessionId);
+      const sessionData = await this.getSession(sessionId);
+      sessionData.messages.push(newMessage);
+      sessionData.updatedAt = new Date();
+      await this.client.set(
+        sessionKey,
+        JSON.stringify(sessionData),
+        'EX',
+        this.sessionTtl,
+      );
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async replaceLastUserMessage(
+    sessionId: string,
+    newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage,
+  ) {
+    const session = await this.getSession(sessionId);
+    if (session.messages[session.messages.length - 1].role === 'user') {
+      session.updatedAt = new Date();
+      session.messages[session.messages.length - 1].content =
+        newMessage.content;
+      const sessionKey = this.getSessionKey(sessionId);
+
+      await this.client.set(
+        sessionKey,
+        JSON.stringify(session),
+        'EX',
+        this.sessionTtl,
+      );
+    } else {
+      throw new Error("Last message isn't user role message");
+    }
   }
 
   async deleteSession(sessionId: string): Promise<void> {
