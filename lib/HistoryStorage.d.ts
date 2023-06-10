@@ -16,6 +16,7 @@ export declare class HistoryStorage {
     isExists(sessionId: string): Promise<boolean>;
     createSession(sessionId: string, modelPreset: SessionData['modelPreset'], messages: ChatCompletionRequestMessage[]): Promise<void>;
     updateMessages(sessionId: string, newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage): Promise<void>;
+    replaceLastUserMessage(sessionId: string, newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage): Promise<void>;
     deleteSession(sessionId: string): Promise<void>;
     getSession(sessionId: string): Promise<SessionData>;
 }
