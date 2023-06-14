@@ -185,3 +185,7 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
 4. [x] write docs
 5. [x] create example project
 6. [ ] connect Langchain history
+7. [ ] separate chats by combined chatId, systemMessageId, and userId
+8. [ ] add user context to middlewares, handlers, etc...
+9. [ ] add method to create injections using systemMessageName
+10. [ ] add method for clear session

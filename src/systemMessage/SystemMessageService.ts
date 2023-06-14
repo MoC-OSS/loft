@@ -1,4 +1,8 @@
-import { SystemMessageComputer, SystemMessageComputers } from '../@types';
+import {
+  InputContext,
+  SystemMessageComputer,
+  SystemMessageComputers,
+} from '../@types';
 import { S3Service } from '../S3Service';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { SystemMessageStorage } from './SystemMessageStorage';
@@ -31,6 +35,7 @@ export class SystemMessageService {
 
   async computeSystemMessage(
     systemMessageName: string,
+    context: InputContext,
   ): Promise<SystemMessageType> {
     const systemMessageComputer =
       this.systemMessageComputers.get(systemMessageName);
@@ -43,7 +48,7 @@ export class SystemMessageService {
     }
 
     if (systemMessage && systemMessageComputer) {
-      return systemMessageComputer(systemMessage);
+      return systemMessageComputer(systemMessage, context);
     }
 
     return systemMessage;

@@ -1,8 +1,12 @@
 import { EventHandler, EventManager, defaultHandler } from './EventManager';
 import {
-  AsyncLLMMiddleware,
+  AsyncLLMInputMiddleware,
+  AsyncLLMOutputMiddleware,
   Config,
+  InputContext,
   InputData,
+  MiddlewareStatus,
+  SessionData,
   SystemMessageComputer,
 } from './@types/index';
 import { Job, Queue, Worker } from 'bullmq';
@@ -13,7 +17,7 @@ import {
   OpenAIApi,
 } from 'openai';
 import { chatCompletionInputSchema } from './schema/chatCompletionSchema';
-import { HistoryStorage, SessionData } from './HistoryStorage';
+import { HistoryStorage } from './HistoryStorage';
 import { LlmIOManager } from './LlmIoManager';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 
@@ -152,11 +156,11 @@ export class LlmOrchestrator {
     this.eventManager.use(name, eventHandler);
   }
 
-  useLLMInput(name: string, middleware: AsyncLLMMiddleware) {
+  useLLMInput(name: string, middleware: AsyncLLMInputMiddleware) {
     this.llmIOManager.useInput(name, middleware);
   }
 
-  useLLMOutput(name: string, middleware: AsyncLLMMiddleware) {
+  useLLMOutput(name: string, middleware: AsyncLLMOutputMiddleware) {
     this.llmIOManager.useOutput(name, middleware);
   }
 
@@ -177,14 +181,22 @@ export class LlmOrchestrator {
     });
 
     const ccm = chatCompletion.data.choices[0].message; // ccm = chat completion message (response)
-
     if (ccm === undefined) throw new Error('LLM API response is empty');
 
-    let llmResponse = await this.llmIOManager.executeOutputMiddlewareChain(
-      ccm.content,
-    );
-    await this.hs.updateMessages(chatId, ccm); // ! separate to other queue for prevent history update with not satisfied LLM response
-    await this.eventManager.executeEventHandlers(llmResponse); // ! add context to event manager
+    const [status, outputContext] =
+      await this.llmIOManager.executeOutputMiddlewareChain({
+        session: job.data.session,
+        llmResponse: chatCompletion.data,
+      });
+
+    /* Cancel job and history update because in middleware was called callAgain()
+     LlmOrchestrator.callAgain() will change last user message in history 
+     add new job to llmApiCallQueue to recall LLM API
+    */
+    if (status === MiddlewareStatus.CALL_AGAIN) return;
+
+    await this.hs.updateMessages(chatId, ccm);
+    await this.eventManager.executeEventHandlers(outputContext);
   }
 
   private async chatCompletionProcessor(job: Job | { data: InputData }) {
@@ -195,17 +207,22 @@ export class LlmOrchestrator {
       intent,
     } = job.data;
     const processedUserMsg =
-      await this.llmIOManager.executeInputMiddlewareChain(message);
+      await this.llmIOManager.executeInputMiddlewareChain(
+        job.data as InputContext,
+      );
 
     const newMessage: ChatCompletionRequestMessage = {
       role: 'user',
-      content: processedUserMsg,
+      content: processedUserMsg.message,
     };
 
     if (await this.hs.isExists(job.data.chatId)) {
       await this.hs.updateMessages(job.data.chatId, newMessage);
     } else {
-      const phData = await this.sms.computeSystemMessage(systemMessageName);
+      const phData = await this.sms.computeSystemMessage(
+        systemMessageName,
+        job.data,
+      );
       const systemMessage: ChatCompletionRequestMessage = {
         role: 'system',
         content: phData.systemMessage,

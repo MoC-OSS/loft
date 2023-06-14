@@ -1,10 +1,12 @@
+import { OutputContext } from './@types';
+
 export type EventDetector = (
-  response: string,
+  response: OutputContext,
   next: () => Promise<void>,
 ) => Promise<boolean>;
 
 export type Handler = (
-  response: string,
+  response: OutputContext,
   next: () => Promise<void>,
 ) => Promise<void>;
 
@@ -14,7 +16,7 @@ export interface EventHandler {
   priority: 0;
 }
 
-export type defaultHandler = (response: string) => Promise<void>;
+export type defaultHandler = (response: OutputContext) => Promise<void>;
 
 export interface TriggeredEvent {
   name: string;
@@ -48,7 +50,7 @@ export class EventManager {
     this.defaultEventHandler = eventHandler;
   }
 
-  async executeEventHandlers(response: string): Promise<void> {
+  async executeEventHandlers(response: OutputContext): Promise<void> {
     let eventHandlersIterator = this.eventHandlers.entries();
     let currentEventHandlerEntry = eventHandlersIterator.next();
     let triggeredEvents: TriggeredEvent[] = [];

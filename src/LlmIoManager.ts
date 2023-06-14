@@ -1,10 +1,25 @@
-import { AsyncLLMMiddleware, LLMMiddlewares } from './@types';
+import { input } from 'zod';
+import {
+  AsyncLLMInputMiddleware,
+  AsyncLLMOutputMiddleware,
+  IOContext,
+  InputContext,
+  InputData,
+  LLMInputMiddlewares,
+  LLMOutputMiddlewares,
+  MiddlewareStatus,
+  OutputContext,
+} from './@types';
+
+export type InputMiddlewareContext = {
+  message: string;
+};
 
 export class LlmIOManager {
-  private llmInputMiddlewareChain: LLMMiddlewares = new Map();
-  private llmOutputMiddlewareChain: LLMMiddlewares = new Map();
+  private llmInputMiddlewareChain: LLMInputMiddlewares = new Map();
+  private llmOutputMiddlewareChain: LLMOutputMiddlewares = new Map();
 
-  useInput(name: string, middleware: AsyncLLMMiddleware) {
+  useInput(name: string, middleware: AsyncLLMInputMiddleware) {
     if (this.llmInputMiddlewareChain.has(middleware.name)) {
       throw new Error(
         `A input middleware with the name "${name}" already exists.`,
@@ -13,7 +28,7 @@ export class LlmIOManager {
     this.llmInputMiddlewareChain.set(name, middleware);
   }
 
-  useOutput(name: string, middleware: AsyncLLMMiddleware) {
+  useOutput(name: string, middleware: AsyncLLMOutputMiddleware) {
     if (this.llmOutputMiddlewareChain.has(middleware.name)) {
       throw new Error(
         `A output middleware with the name "${name}" already exists.`,
@@ -22,49 +37,98 @@ export class LlmIOManager {
     this.llmOutputMiddlewareChain.set(name, middleware);
   }
 
-  async executeInputMiddlewareChain(inputText: string): Promise<string> {
-    return this.executeMiddlewareChain(inputText, this.llmInputMiddlewareChain);
-  }
-
-  async executeOutputMiddlewareChain(outputText: string): Promise<string> {
-    return this.executeMiddlewareChain(
-      outputText,
-      this.llmOutputMiddlewareChain,
-    );
-  }
-
-  private async executeMiddlewareChain(
-    inputText: string,
-    middlewares: LLMMiddlewares,
-  ): Promise<string> {
-    let middlewaresIterator = middlewares.entries();
+  async executeInputMiddlewareChain(
+    inputContext: InputContext,
+  ): Promise<InputContext> {
+    let middlewaresIterator = this.llmInputMiddlewareChain.entries();
     let currentMiddlewareEntry = middlewaresIterator.next();
-    let modifiedText: string = inputText;
+    let modifiedContext: InputContext = { ...inputContext };
 
     try {
-      const next = async (modifiedInputText: string): Promise<void> => {
+      const next = async (
+        modifiedInputContext: InputContext,
+      ): Promise<void> => {
         if (currentMiddlewareEntry.done) return;
         let [name, middleware] = currentMiddlewareEntry.value;
         currentMiddlewareEntry = middlewaresIterator.next();
 
         try {
-          await middleware(modifiedInputText, (nextInputText: string) => {
-            modifiedText = nextInputText;
-            return next(modifiedText);
-          });
+          await middleware(
+            modifiedInputContext,
+            (nextInputContext: InputContext) => {
+              modifiedContext = { ...nextInputContext };
+              return next(modifiedContext);
+            },
+          );
         } catch (error) {
           console.error(`Error occurred in middleware ${name}: ${error}`);
           throw error;
         }
       };
 
-      await next(inputText);
+      await next(inputContext);
     } catch (error) {
       console.error(
         `Error occurred while executing middleware chain: ${error}`,
       );
     }
 
-    return modifiedText;
+    return modifiedContext;
+  }
+
+  async executeOutputMiddlewareChain(
+    outputContext: OutputContext,
+  ): Promise<[status: string, outputContext: OutputContext]> {
+    let middlewaresIterator = this.llmOutputMiddlewareChain.entries();
+    let currentMiddlewareEntry = middlewaresIterator.next();
+    let modifiedContext: OutputContext = { ...outputContext };
+    const middlewareStatuses: { name: string; status: MiddlewareStatus }[] = [];
+
+    try {
+      const next = async (
+        modifiedOutputContext: OutputContext,
+      ): Promise<void> => {
+        if (currentMiddlewareEntry.done) return;
+        let [name, middleware] = currentMiddlewareEntry.value;
+        currentMiddlewareEntry = middlewaresIterator.next();
+
+        try {
+          const { status, newOutputContext } = await middleware(
+            modifiedOutputContext,
+            (nextIOContext: OutputContext) => {
+              modifiedContext = { ...nextIOContext };
+              return next(modifiedContext);
+            },
+          );
+
+          middlewareStatuses.push({
+            name,
+            status: status || MiddlewareStatus.NOT_RETURNED,
+          });
+
+          if (status === MiddlewareStatus.CALL_AGAIN) {
+            return;
+          } else if (!status || status === MiddlewareStatus.CONTINUE) {
+            return next(newOutputContext);
+          }
+        } catch (error) {
+          console.error(`Error occurred in middleware ${name}: ${error}`);
+          throw error;
+        }
+      };
+
+      await next(outputContext);
+    } catch (error) {
+      console.error(
+        `Error occurred while executing middleware chain: ${error}`,
+      );
+    }
+
+    const isCallAgain = middlewareStatuses.some(({ status }) =>
+      status.includes(MiddlewareStatus.CALL_AGAIN),
+    );
+
+    if (isCallAgain) return [MiddlewareStatus.CALL_AGAIN, modifiedContext];
+    else return [MiddlewareStatus.CONTINUE, modifiedContext];
   }
 }

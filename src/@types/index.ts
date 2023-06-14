@@ -1,11 +1,30 @@
+import {
+  ChatCompletionRequestMessage,
+  CreateChatCompletionResponse,
+} from 'openai';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 
+export interface SessionData {
+  sessionId: string;
+  modelPreset: SystemMessageType['modelPreset'];
+  messages: ChatCompletionRequestMessage[];
+  createdAt: Date;
+  updatedAt: Date;
+}
 export interface InputData {
   systemMessage: string;
   message: string;
   chatId: string;
   intent: string;
 }
+export interface InputContext extends InputData {}
+
+export interface OutputContext {
+  session: SessionData;
+  llmResponse?: CreateChatCompletionResponse;
+}
+
+export type IOContext = InputContext | OutputContext;
 
 export interface Config {
   nodeEnv: string;
@@ -35,13 +54,28 @@ export interface Config {
   };
 }
 
-export type AsyncLLMMiddleware = (
-  input: string,
-  next: (input: string) => Promise<void>,
+export enum MiddlewareStatus {
+  CONTINUE = 'CONTINUE',
+  CALL_AGAIN = 'CALL_AGAIN',
+  NOT_RETURNED = 'NOT_RETURNED',
+}
+
+export type AsyncLLMInputMiddleware = (
+  input: InputContext,
+  next: (input: InputContext) => Promise<void>,
 ) => Promise<void>;
-export type LLMMiddlewares = Map<string, AsyncLLMMiddleware>;
+
+export type AsyncLLMOutputMiddleware = (
+  input: OutputContext,
+  next: (output: OutputContext) => Promise<void>,
+) => Promise<{ status?: MiddlewareStatus; newOutputContext: OutputContext }>;
+
+export type LLMInputMiddlewares = Map<string, AsyncLLMInputMiddleware>;
+export type LLMOutputMiddlewares = Map<string, AsyncLLMOutputMiddleware>;
 
 export type SystemMessageComputer = (
   input: SystemMessageType,
+  context: InputData,
 ) => Promise<SystemMessageType>;
+
 export type SystemMessageComputers = Map<string, SystemMessageComputer>;
