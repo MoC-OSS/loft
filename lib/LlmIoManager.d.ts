@@ -1,11 +1,13 @@
-import { AsyncLLMMiddleware } from './@types';
+import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, InputContext, OutputContext } from './@types';
+export type InputMiddlewareContext = {
+    message: string;
+};
 export declare class LlmIOManager {
     private llmInputMiddlewareChain;
     private llmOutputMiddlewareChain;
-    useInput(name: string, middleware: AsyncLLMMiddleware): void;
-    useOutput(name: string, middleware: AsyncLLMMiddleware): void;
-    executeInputMiddlewareChain(inputText: string): Promise<string>;
-    executeOutputMiddlewareChain(outputText: string): Promise<string>;
-    private executeMiddlewareChain;
+    useInput(name: string, middleware: AsyncLLMInputMiddleware): void;
+    useOutput(name: string, middleware: AsyncLLMOutputMiddleware): void;
+    executeInputMiddlewareChain(inputContext: InputContext): Promise<InputContext>;
+    executeOutputMiddlewareChain(outputContext: OutputContext): Promise<[status: string, outputContext: OutputContext]>;
 }
 //# sourceMappingURL=LlmIoManager.d.ts.map

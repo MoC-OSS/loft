@@ -1,5 +1,5 @@
 import { EventHandler, defaultHandler } from './EventManager';
-import { AsyncLLMMiddleware, Config, InputData, SystemMessageComputer } from './@types/index';
+import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, InputData, SystemMessageComputer } from './@types/index';
 import { ChatCompletionRequestMessage, ChatCompletionResponseMessage } from 'openai';
 import { HistoryStorage } from './HistoryStorage';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
@@ -26,8 +26,8 @@ export declare class LlmOrchestrator {
     useComputeSystemMessage(name: string, handler: SystemMessageComputer): void;
     useDefaultHandler(eventHandler: defaultHandler): void;
     useEventHandler(name: string, eventHandler: EventHandler): void;
-    useLLMInput(name: string, middleware: AsyncLLMMiddleware): void;
-    useLLMOutput(name: string, middleware: AsyncLLMMiddleware): void;
+    useLLMInput(name: string, middleware: AsyncLLMInputMiddleware): void;
+    useLLMOutput(name: string, middleware: AsyncLLMOutputMiddleware): void;
     private llmApiCallProcessor;
     private chatCompletionProcessor;
 }

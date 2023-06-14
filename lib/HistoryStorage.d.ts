@@ -1,13 +1,6 @@
 import { Redis, Cluster } from 'ioredis';
 import { ChatCompletionRequestMessage, ChatCompletionResponseMessage } from 'openai';
-import { SystemMessageType } from './schema/CreateChatCompletionRequestSchema';
-export interface SessionData {
-    sessionId: string;
-    modelPreset: SystemMessageType['modelPreset'];
-    messages: ChatCompletionRequestMessage[];
-    createdAt: Date;
-    updatedAt: Date;
-}
+import { SessionData } from './@types';
 export declare class HistoryStorage {
     private client;
     private sessionTtl;
