@@ -3,6 +3,7 @@ import {
   CreateChatCompletionResponse,
 } from 'openai';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
+import { PromptType } from '../schema/PromptSchema';
 
 export interface SessionData {
   sessionId: string;
@@ -79,3 +80,10 @@ export type SystemMessageComputer = (
 ) => Promise<SystemMessageType>;
 
 export type SystemMessageComputers = Map<string, SystemMessageComputer>;
+
+export type PromptComputer = (
+  input: PromptType,
+  context: InputData,
+) => Promise<PromptType>;
+
+export type PromptComputers = Map<string, PromptComputer>;

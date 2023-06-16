@@ -9,6 +9,7 @@ import {
   CreateChatCompletionRequestType,
   createChatCompletionRequestSchema,
 } from './schema/CreateChatCompletionRequestSchema';
+import { PromptSchema, PromptsFileType } from './schema/PromptSchema';
 
 export class S3Service {
   private readonly client: S3Client;
@@ -60,6 +61,27 @@ export class S3Service {
 
       const systemMessages = JSON.parse(await file.transformToString());
       return createChatCompletionRequestSchema.parse(systemMessages);
+    } catch (error) {
+      console.error(error);
+      await this.logToS3((error as Error).toString());
+      throw error;
+    }
+  }
+
+  async getPrompts(): Promise<PromptsFileType> {
+    try {
+      const fileName = `${this.botName}/${this.env}/prompts.json`;
+      const file = await this.getFile(fileName);
+
+      if (file === null || file === undefined) {
+        const errorMessage = `File ${fileName} not found!`;
+        console.error(errorMessage, 'App will be terminated.');
+        await this.logToS3(errorMessage);
+        process.exit(1);
+      }
+
+      const prompts = JSON.parse(await file.transformToString());
+      return PromptSchema.parse(prompts);
     } catch (error) {
       console.error(error);
       await this.logToS3((error as Error).toString());
