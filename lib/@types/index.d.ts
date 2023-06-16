@@ -1,5 +1,6 @@
 import { ChatCompletionRequestMessage, CreateChatCompletionResponse } from 'openai';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
+import { PromptType } from '../schema/PromptSchema';
 export interface SessionData {
     sessionId: string;
     modelPreset: SystemMessageType['modelPreset'];
@@ -61,4 +62,6 @@ export type LLMInputMiddlewares = Map<string, AsyncLLMInputMiddleware>;
 export type LLMOutputMiddlewares = Map<string, AsyncLLMOutputMiddleware>;
 export type SystemMessageComputer = (input: SystemMessageType, context: InputData) => Promise<SystemMessageType>;
 export type SystemMessageComputers = Map<string, SystemMessageComputer>;
+export type PromptComputer = (input: PromptType, context: InputData) => Promise<PromptType>;
+export type PromptComputers = Map<string, PromptComputer>;
 //# sourceMappingURL=index.d.ts.map
