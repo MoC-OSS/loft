@@ -6,6 +6,7 @@ import {
   InputContext,
   InputData,
   MiddlewareStatus,
+  PromptComputer,
   SessionData,
   SystemMessageComputer,
 } from './@types/index';
@@ -16,10 +17,11 @@ import {
   Configuration,
   OpenAIApi,
 } from 'openai';
-import { chatCompletionInputSchema } from './schema/chatCompletionSchema';
 import { HistoryStorage } from './HistoryStorage';
 import { LlmIOManager } from './LlmIoManager';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
+import { PromptService } from './prompt/PromptService';
+import { ChatCompletionInputSchema } from './schema/ChatCompletionSchema';
 
 export class LlmOrchestrator {
   private readonly eventManager: EventManager = new EventManager();
@@ -34,6 +36,7 @@ export class LlmOrchestrator {
   private constructor(
     private readonly cfg: Config,
     private readonly sms: SystemMessageService,
+    private readonly ps: PromptService,
     private readonly hs: HistoryStorage,
   ) {
     this.openai = new OpenAIApi(
@@ -97,22 +100,23 @@ export class LlmOrchestrator {
   public static async createInstance(
     cfg: Config,
     sms: SystemMessageService,
+    ps: PromptService,
     hs: HistoryStorage,
   ): Promise<LlmOrchestrator> {
-    const instance = new LlmOrchestrator(cfg, sms, hs);
+    const instance = new LlmOrchestrator(cfg, sms, ps, hs);
     await instance.initialize();
     return instance;
   }
 
   private async initialize(): Promise<void> {
-    await this.sms.syncSystemMessages();
+    await this.syncSystemMessagesAndPrompts();
     this.completionWorker.run(); // run the worker after sync systemMessages
     this.llmApiCallWorker.run();
   }
 
   public async chatCompletion(data: InputData) {
     try {
-      const chatData = chatCompletionInputSchema.parse(data);
+      const chatData = ChatCompletionInputSchema.parse(data);
       await this.completionQueue.add(
         `input:process:chat:${data.chatId}`,
         chatData,
@@ -124,6 +128,33 @@ export class LlmOrchestrator {
     } catch (error) {
       console.log(error);
     }
+  }
+
+  async injectPromptAndSend(promptName: string, userInput: InputContext) {
+    const { chatId } = userInput;
+    if (!(await this.hs.isExists(chatId)))
+      throw new Error("inject prompt failed: chatId doesn't exist");
+
+    const promptData = await this.ps.computePrompt(promptName, userInput);
+    const userPrompt: ChatCompletionRequestMessage = {
+      role: 'user',
+      content: promptData.prompt,
+    };
+
+    this.hs.updateMessages(chatId, userPrompt);
+
+    const processedInputContext =
+      await this.llmIOManager.executeInputMiddlewareChain(
+        userInput as InputContext,
+      );
+    const newMessage: ChatCompletionRequestMessage = {
+      role: 'user',
+      content: processedInputContext.message,
+    };
+    await this.hs.updateMessages(chatId, newMessage);
+
+    const session = await this.hs.getSession(chatId);
+    await this.llmApiCallQueue.add(`insert:with:prompt:llm:${chatId}`, session);
   }
 
   public async callAgain(data: {
@@ -140,12 +171,17 @@ export class LlmOrchestrator {
     }
   }
 
-  async syncSystemMessages() {
+  async syncSystemMessagesAndPrompts() {
     await this.sms.syncSystemMessages();
+    await this.ps.syncPrompts();
   }
 
   useComputeSystemMessage(name: string, handler: SystemMessageComputer) {
     this.sms.use(name, handler);
+  }
+
+  useComputePrompt(name: string, handler: PromptComputer) {
+    this.ps.use(name, handler);
   }
 
   useDefaultHandler(eventHandler: defaultHandler) {
@@ -167,81 +203,91 @@ export class LlmOrchestrator {
   private async llmApiCallProcessor(
     job: Job | { data: InputData; session: SessionData },
   ) {
-    const {
-      data: { chatId },
-      session: {
+    try {
+      const {
+        data: { chatId },
+        session: {
+          messages,
+          modelPreset: { model },
+        },
+      } = job.data;
+
+      const chatCompletion = await this.openai.createChatCompletion({
+        model,
         messages,
-        modelPreset: { model },
-      },
-    } = job.data;
-
-    const chatCompletion = await this.openai.createChatCompletion({
-      model,
-      messages,
-    });
-
-    const ccm = chatCompletion.data.choices[0].message; // ccm = chat completion message (response)
-    if (ccm === undefined) throw new Error('LLM API response is empty');
-
-    const [status, outputContext] =
-      await this.llmIOManager.executeOutputMiddlewareChain({
-        session: job.data.session,
-        llmResponse: chatCompletion.data,
       });
 
-    /* Cancel job and history update because in middleware was called callAgain()
-     LlmOrchestrator.callAgain() will change last user message in history 
-     add new job to llmApiCallQueue to recall LLM API
-    */
-    if (status === MiddlewareStatus.CALL_AGAIN) return;
+      const ccm = chatCompletion.data.choices[0].message; // ccm = chat completion message (response)
+      if (ccm === undefined) throw new Error('LLM API response is empty');
 
-    await this.hs.updateMessages(chatId, ccm);
-    await this.eventManager.executeEventHandlers(outputContext);
+      const [status, outputContext] =
+        await this.llmIOManager.executeOutputMiddlewareChain({
+          session: job.data.session,
+          llmResponse: chatCompletion.data,
+        });
+
+      /* Cancel job and history update because in middleware was called callAgain()
+       LlmOrchestrator.callAgain() will change last user message in history 
+       add new job to llmApiCallQueue to recall LLM API
+      */
+      if (status === MiddlewareStatus.CALL_AGAIN) return;
+
+      await this.hs.updateMessages(chatId, ccm);
+      await this.eventManager.executeEventHandlers(outputContext);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   }
 
   private async chatCompletionProcessor(job: Job | { data: InputData }) {
-    const {
-      systemMessage: systemMessageName,
-      message,
-      chatId,
-      intent,
-    } = job.data;
-    const processedUserMsg =
-      await this.llmIOManager.executeInputMiddlewareChain(
-        job.data as InputContext,
-      );
+    try {
+      const {
+        systemMessage: systemMessageName,
+        message,
+        chatId,
+        intent,
+      } = job.data;
+      const processedUserMsg =
+        await this.llmIOManager.executeInputMiddlewareChain(
+          job.data as InputContext,
+        );
 
-    const newMessage: ChatCompletionRequestMessage = {
-      role: 'user',
-      content: processedUserMsg.message,
-    };
-
-    if (await this.hs.isExists(job.data.chatId)) {
-      await this.hs.updateMessages(job.data.chatId, newMessage);
-    } else {
-      const phData = await this.sms.computeSystemMessage(
-        systemMessageName,
-        job.data,
-      );
-      const systemMessage: ChatCompletionRequestMessage = {
-        role: 'system',
-        content: phData.systemMessage,
+      const newMessage: ChatCompletionRequestMessage = {
+        role: 'user',
+        content: processedUserMsg.message,
       };
-      await this.hs.createSession(job.data.chatId, phData.modelPreset, [
-        systemMessage,
-        newMessage,
-      ]);
+
+      if (await this.hs.isExists(job.data.chatId)) {
+        await this.hs.updateMessages(job.data.chatId, newMessage);
+      } else {
+        const phData = await this.sms.computeSystemMessage(
+          systemMessageName,
+          job.data,
+        );
+        const systemMessage: ChatCompletionRequestMessage = {
+          role: 'system',
+          content: phData.systemMessage,
+        };
+        await this.hs.createSession(job.data.chatId, phData.modelPreset, [
+          systemMessage,
+          newMessage,
+        ]);
+      }
+
+      const chatSession = await this.hs.getSession(job.data.chatId);
+
+      await this.llmApiCallQueue.add(
+        `llm:call:chat:${job.data.chatId}`,
+        {
+          data: job.data,
+          session: chatSession,
+        },
+        { removeOnComplete: true, attempts: 3 },
+      );
+    } catch (error) {
+      console.log(error);
+      throw error;
     }
-
-    const chatSession = await this.hs.getSession(job.data.chatId);
-
-    await this.llmApiCallQueue.add(
-      `llm:call:chat:${job.data.chatId}`,
-      {
-        data: job.data,
-        session: chatSession,
-      },
-      { removeOnComplete: true, attempts: 3 },
-    );
   }
 }

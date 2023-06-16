@@ -1,0 +1,8 @@
+{
+  "prompts": [
+    {
+      "name": "name",
+      "prompt": "What is the name of your project?"
+    }
+  ]
+}

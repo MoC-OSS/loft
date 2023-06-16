@@ -1,11 +1,13 @@
 import { EventHandler, defaultHandler } from './EventManager';
-import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, InputData, SystemMessageComputer } from './@types/index';
+import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, InputContext, InputData, PromptComputer, SystemMessageComputer } from './@types/index';
 import { ChatCompletionRequestMessage, ChatCompletionResponseMessage } from 'openai';
 import { HistoryStorage } from './HistoryStorage';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
+import { PromptService } from './prompt/PromptService';
 export declare class LlmOrchestrator {
     private readonly cfg;
     private readonly sms;
+    private readonly ps;
     private readonly hs;
     private readonly eventManager;
     private readonly llmIOManager;
@@ -15,15 +17,17 @@ export declare class LlmOrchestrator {
     private readonly llmApiCallQueue;
     private readonly llmApiCallWorker;
     private constructor();
-    static createInstance(cfg: Config, sms: SystemMessageService, hs: HistoryStorage): Promise<LlmOrchestrator>;
+    static createInstance(cfg: Config, sms: SystemMessageService, ps: PromptService, hs: HistoryStorage): Promise<LlmOrchestrator>;
     private initialize;
     chatCompletion(data: InputData): Promise<void>;
+    injectPromptAndSend(promptName: string, userInput: InputContext): Promise<void>;
     callAgain(data: {
         chatId: string;
         message: ChatCompletionResponseMessage | ChatCompletionRequestMessage;
     }): Promise<void>;
-    syncSystemMessages(): Promise<void>;
+    syncSystemMessagesAndPrompts(): Promise<void>;
     useComputeSystemMessage(name: string, handler: SystemMessageComputer): void;
+    useComputePrompt(name: string, handler: PromptComputer): void;
     useDefaultHandler(eventHandler: defaultHandler): void;
     useEventHandler(name: string, eventHandler: EventHandler): void;
     useLLMInput(name: string, middleware: AsyncLLMInputMiddleware): void;

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-export declare const chatCompletionInputSchema: z.ZodObject<{
+export declare const ChatCompletionInputSchema: z.ZodObject<{
     systemMessage: z.ZodString;
     message: z.ZodString;
     chatId: z.ZodString;

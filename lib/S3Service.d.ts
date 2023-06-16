@@ -1,5 +1,6 @@
 /// <reference types="node" />
 import { CreateChatCompletionRequestType } from './schema/CreateChatCompletionRequestSchema';
+import { PromptsFileType } from './schema/PromptSchema';
 export declare class S3Service {
     private readonly env;
     private readonly region;
@@ -9,6 +10,7 @@ export declare class S3Service {
     constructor(env: string, region: string, bucketName: string, botName: string);
     getFile(filename: string): Promise<import("@aws-sdk/types").SdkStream<import("stream").Readable | ReadableStream<any> | Blob | undefined> | null | undefined>;
     getSystemMessages(): Promise<CreateChatCompletionRequestType>;
+    getPrompts(): Promise<PromptsFileType>;
     logToS3(data: string): Promise<void>;
     private getS3LogFileParams;
 }
