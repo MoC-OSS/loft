@@ -1,3 +1,4 @@
+import { input } from 'zod';
 import { EventHandler, EventManager, defaultHandler } from './EventManager';
 import {
   AsyncLLMInputMiddleware,
@@ -141,8 +142,6 @@ export class LlmOrchestrator {
       content: promptData.prompt,
     };
 
-    this.hs.updateMessages(chatId, userPrompt);
-
     const processedInputContext =
       await this.llmIOManager.executeInputMiddlewareChain(
         userInput as InputContext,
@@ -151,25 +150,56 @@ export class LlmOrchestrator {
       role: 'user',
       content: processedInputContext.message,
     };
-    await this.hs.updateMessages(chatId, newMessage);
 
-    const session = await this.hs.getSession(chatId);
-    await this.llmApiCallQueue.add(`insert:with:prompt:llm:${chatId}`, session);
-  }
+    const prevSession = await this.hs.getSession(chatId);
+    const lastPrompt = prevSession.messages[prevSession.messages.length - 2];
+    const lastUserMessage =
+      prevSession.messages[prevSession.messages.length - 1];
+    const ifLastPromptIsLikeCurrentPrompt =
+      lastPrompt.content === promptData.prompt;
+    const ifLastUserMessageIsLikeCurrentUserMessage =
+      lastUserMessage.content === processedInputContext.message;
+    const isHistoryDuplicate =
+      ifLastPromptIsLikeCurrentPrompt &&
+      ifLastUserMessageIsLikeCurrentUserMessage;
 
-  public async callAgain(data: {
-    chatId: string;
-    message: ChatCompletionResponseMessage | ChatCompletionRequestMessage;
-  }) {
-    const { chatId, message } = data;
-    try {
-      this.hs.replaceLastUserMessage(chatId, message);
-      const session = await this.hs.getSession(chatId);
-      await this.llmApiCallQueue.add(`input:recall:llm:${chatId}`, session);
-    } catch (error) {
-      console.log(error);
+    // if last prompt and user message is the same as the current message, don't update history and return
+    if (isHistoryDuplicate) {
+      const error = new Error(
+        `
+        ChatId: ${chatId}.
+        PromptName: ${promptName}.
+        History duplicate detected.
+        Row will be skipped.
+        Thats can be result of not expected error related to mistakes in S3 files, Prompt callbacks or other related logic.
+        Method injectPromptAndSend() will be skipped. and chat flow interrupted.`,
+      );
+      throw error;
     }
+
+    await this.hs.updateMessages(chatId, userPrompt);
+    await this.hs.updateMessages(chatId, newMessage);
+    const session = await this.hs.getSession(chatId);
+
+    await this.llmApiCallQueue.add(`insert:with:prompt:llm:${chatId}`, {
+      inputContext: userInput,
+      session,
+    });
   }
+
+  // public async callAgain(data: {
+  //   inputContext: InputContext;
+  //   message: ChatCompletionResponseMessage | ChatCompletionRequestMessage;
+  // }) {
+  //   const { chatId, message } = data;
+  //   try {
+  //     this.hs.replaceLastUserMessage(chatId, message);
+  //     const session = await this.hs.getSession(chatId);
+  //     await this.llmApiCallQueue.add(`input:recall:llm:${chatId}`, session);
+  //   } catch (error) {
+  //     console.log(error);
+  //   }
+  // }
 
   async syncSystemMessagesAndPrompts() {
     await this.sms.syncSystemMessages();
@@ -201,16 +231,15 @@ export class LlmOrchestrator {
   }
 
   private async llmApiCallProcessor(
-    job: Job | { data: InputData; session: SessionData },
+    job: Job | { data: { inputContext: InputContext; session: SessionData } },
   ) {
     try {
+      const { inputContext, session } = job.data;
+      const { chatId } = inputContext;
       const {
-        data: { chatId },
-        session: {
-          messages,
-          modelPreset: { model },
-        },
-      } = job.data;
+        messages,
+        modelPreset: { model },
+      } = session;
 
       const chatCompletion = await this.openai.createChatCompletion({
         model,
@@ -224,6 +253,7 @@ export class LlmOrchestrator {
         await this.llmIOManager.executeOutputMiddlewareChain({
           session: job.data.session,
           llmResponse: chatCompletion.data,
+          inputContext,
         });
 
       /* Cancel job and history update because in middleware was called callAgain()
@@ -232,7 +262,10 @@ export class LlmOrchestrator {
       */
       if (status === MiddlewareStatus.CALL_AGAIN) return;
 
-      await this.hs.updateMessages(chatId, ccm);
+      const outputMessage = outputContext.llmResponse?.choices[0].message;
+      if (!outputMessage)
+        throw new Error('LLM API response after OutputMiddlewares is empty!');
+      await this.hs.updateMessages(chatId, outputMessage);
       await this.eventManager.executeEventHandlers(outputContext);
     } catch (error) {
       console.log(error);
@@ -280,7 +313,7 @@ export class LlmOrchestrator {
       await this.llmApiCallQueue.add(
         `llm:call:chat:${job.data.chatId}`,
         {
-          data: job.data,
+          inputContext: job.data,
           session: chatSession,
         },
         { removeOnComplete: true, attempts: 3 },

@@ -1,4 +1,4 @@
-import { OutputContext } from './@types';
+import { InputContext, OutputContext } from './@types';
 
 export type EventDetector = (
   response: OutputContext,

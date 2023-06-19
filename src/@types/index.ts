@@ -21,6 +21,7 @@ export interface InputData {
 export interface InputContext extends InputData {}
 
 export interface OutputContext {
+  inputContext: InputContext;
   session: SessionData;
   llmResponse?: CreateChatCompletionResponse;
 }

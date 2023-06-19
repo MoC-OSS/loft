@@ -1,6 +1,5 @@
 import { EventHandler, defaultHandler } from './EventManager';
 import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, InputContext, InputData, PromptComputer, SystemMessageComputer } from './@types/index';
-import { ChatCompletionRequestMessage, ChatCompletionResponseMessage } from 'openai';
 import { HistoryStorage } from './HistoryStorage';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
@@ -21,10 +20,6 @@ export declare class LlmOrchestrator {
     private initialize;
     chatCompletion(data: InputData): Promise<void>;
     injectPromptAndSend(promptName: string, userInput: InputContext): Promise<void>;
-    callAgain(data: {
-        chatId: string;
-        message: ChatCompletionResponseMessage | ChatCompletionRequestMessage;
-    }): Promise<void>;
     syncSystemMessagesAndPrompts(): Promise<void>;
     useComputeSystemMessage(name: string, handler: SystemMessageComputer): void;
     useComputePrompt(name: string, handler: PromptComputer): void;
