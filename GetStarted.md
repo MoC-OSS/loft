@@ -179,7 +179,7 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
     ```
 
 ## Soon To Be:
-1. [ ] ability to resend message to LLM from LLM IO Middlewares and EventHandlers. And add methods for make LLM API calls with rate limit.
+1. [x] ability to resend message to LLM from LLM IO Middlewares and EventHandlers. And add methods for make LLM API calls with rate limit.
 2. [ ] Using parts of libraries from LangChainJS
 3. [x] External dependency injection
 4. [x] write docs
@@ -188,4 +188,4 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
 7. [ ] separate chats by combined chatId, systemMessageId, and userId
 8. [x] add user context to middlewares, handlers, etc...
 9. [x] add method to create injections using systemMessageName
-10. [ ] add method for clear session
+10. [x] add method for clear session

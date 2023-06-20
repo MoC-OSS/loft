@@ -11,6 +11,8 @@ export declare class HistoryStorage {
     updateMessages(sessionId: string, newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage): Promise<void>;
     replaceLastUserMessage(sessionId: string, newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage, role?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
     deleteSession(sessionId: string): Promise<void>;
+    deleteSessionsById(sessionId: string): Promise<void>;
+    findKeysByPartialName(partialKey: string): Promise<string[]>;
     getSession(sessionId: string): Promise<SessionData>;
 }
 //# sourceMappingURL=HistoryStorage.d.ts.map

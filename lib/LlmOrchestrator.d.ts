@@ -25,6 +25,7 @@ export declare class LlmOrchestrator {
         status?: MiddlewareStatus;
         newOutputContext: OutputContext | undefined;
     }>;
+    deleteSessionsById(sessionId: string): Promise<void>;
     syncSystemMessagesAndPrompts(): Promise<void>;
     useComputeSystemMessage(name: string, handler: SystemMessageComputer): void;
     useComputePrompt(name: string, handler: PromptComputer): void;

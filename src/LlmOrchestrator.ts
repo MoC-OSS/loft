@@ -243,6 +243,10 @@ export class LlmOrchestrator {
     }
   }
 
+  async deleteSessionsById(sessionId: string) {
+    await this.hs.deleteSessionsById(sessionId);
+  }
+
   async syncSystemMessagesAndPrompts() {
     await this.sms.syncSystemMessages();
     await this.ps.syncPrompts();

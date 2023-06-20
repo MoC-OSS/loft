@@ -95,6 +95,18 @@ export class HistoryStorage {
     await this.client.del(sessionKey);
   }
 
+  async deleteSessionsById(sessionId: string) {
+    const keys = await this.findKeysByPartialName(sessionId);
+    await this.client.del(keys);
+  }
+  async findKeysByPartialName(partialKey: string) {
+    try {
+      return this.client.keys(`*${partialKey}*`);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
   // async getMessages(
   //   sessionId: string,
   // ): Promise<ChatCompletionRequestMessage[]> {
