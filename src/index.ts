@@ -13,7 +13,10 @@ export {
   SystemMessageComputer,
   InputContext,
   OutputContext,
+  InputData,
+  SessionData,
 } from './@types/index';
 
 import { MiddlewareStatus as MdStatus } from './@types/index';
-export const MiddlewareStatus = { ...MdStatus } as Record<MdStatus, MdStatus>;
+export const MiddlewareStatuses = { ...MdStatus } as Record<MdStatus, MdStatus>;
+export type MiddlewareStatus = MdStatus;

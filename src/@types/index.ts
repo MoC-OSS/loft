@@ -16,12 +16,14 @@ export interface InputData {
   systemMessage: string;
   message: string;
   chatId: string;
-  intent: string;
+  intent?: string;
 }
-export interface InputContext extends InputData {}
+export interface InputContext {
+  message: string;
+  sessionId: string;
+}
 
 export interface OutputContext {
-  inputContext: InputContext;
   session: SessionData;
   llmResponse?: CreateChatCompletionResponse;
 }
@@ -60,17 +62,21 @@ export enum MiddlewareStatus {
   CONTINUE = 'CONTINUE',
   CALL_AGAIN = 'CALL_AGAIN',
   NOT_RETURNED = 'NOT_RETURNED',
+  STOP = 'STOP',
 }
 
 export type AsyncLLMInputMiddleware = (
-  input: InputContext,
+  context: InputContext,
   next: (input: InputContext) => Promise<void>,
 ) => Promise<void>;
 
 export type AsyncLLMOutputMiddleware = (
-  input: OutputContext,
+  context: OutputContext,
   next: (output: OutputContext) => Promise<void>,
-) => Promise<{ status?: MiddlewareStatus; newOutputContext: OutputContext }>;
+) => Promise<{
+  status?: MiddlewareStatus;
+  newOutputContext: OutputContext | undefined;
+}>;
 
 export type LLMInputMiddlewares = Map<string, AsyncLLMInputMiddleware>;
 export type LLMOutputMiddlewares = Map<string, AsyncLLMOutputMiddleware>;
@@ -84,7 +90,7 @@ export type SystemMessageComputers = Map<string, SystemMessageComputer>;
 
 export type PromptComputer = (
   input: PromptType,
-  context: InputData,
+  context: SessionData,
 ) => Promise<PromptType>;
 
 export type PromptComputers = Map<string, PromptComputer>;

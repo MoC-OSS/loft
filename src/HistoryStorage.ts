@@ -1,6 +1,7 @@
 import { Redis, Cluster } from 'ioredis';
 import {
   ChatCompletionRequestMessage,
+  ChatCompletionRequestMessageRoleEnum,
   ChatCompletionResponseMessage,
 } from 'openai';
 import { SessionData } from './@types';
@@ -69,9 +70,10 @@ export class HistoryStorage {
   async replaceLastUserMessage(
     sessionId: string,
     newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage,
+    role: ChatCompletionRequestMessageRoleEnum = 'user',
   ) {
     const session = await this.getSession(sessionId);
-    if (session.messages[session.messages.length - 1].role === 'user') {
+    if (session.messages[session.messages.length - 1].role === role) {
       session.updatedAt = new Date();
       session.messages[session.messages.length - 1].content =
         newMessage.content;

@@ -1,4 +1,9 @@
-import { InputContext, PromptComputer, PromptComputers } from '../@types';
+import {
+  InputContext,
+  PromptComputer,
+  PromptComputers,
+  SessionData,
+} from '../@types';
 import { S3Service } from '../S3Service';
 import { PromptType } from '../schema/PromptSchema';
 import { PromptStorage } from './PromptStorage';
@@ -27,7 +32,7 @@ export class PromptService {
 
   async computePrompt(
     promptName: string,
-    context: InputContext,
+    session: SessionData,
   ): Promise<PromptType> {
     const promptComputer = this.promptComputers.get(promptName);
     const prompt = await this.promptStorage.getPromptByName(promptName);
@@ -38,7 +43,7 @@ export class PromptService {
     }
 
     if (prompt && promptComputer) {
-      return promptComputer(prompt, context);
+      return promptComputer(prompt, session);
     }
 
     return prompt;

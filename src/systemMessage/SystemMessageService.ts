@@ -1,5 +1,6 @@
 import {
   InputContext,
+  InputData,
   SystemMessageComputer,
   SystemMessageComputers,
 } from '../@types';
@@ -35,7 +36,7 @@ export class SystemMessageService {
 
   async computeSystemMessage(
     systemMessageName: string,
-    context: InputContext,
+    context: InputData,
   ): Promise<SystemMessageType> {
     const systemMessageComputer =
       this.systemMessageComputers.get(systemMessageName);

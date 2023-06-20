@@ -1,4 +1,3 @@
-import { input } from 'zod';
 import {
   AsyncLLMInputMiddleware,
   AsyncLLMOutputMiddleware,
@@ -106,9 +105,12 @@ export class LlmIOManager {
             status: status || MiddlewareStatus.NOT_RETURNED,
           });
 
-          if (status === MiddlewareStatus.CALL_AGAIN) {
+          if (
+            status === MiddlewareStatus.CALL_AGAIN ||
+            status === MiddlewareStatus.STOP
+          ) {
             return;
-          } else if (!status || status === MiddlewareStatus.CONTINUE) {
+          } else if (newOutputContext && status === MiddlewareStatus.CONTINUE) {
             return next(newOutputContext);
           }
         } catch (error) {
