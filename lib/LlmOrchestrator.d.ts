@@ -1,5 +1,6 @@
 import { EventHandler, defaultHandler } from './EventManager';
-import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, InputContext, InputData, PromptComputer, SystemMessageComputer } from './@types/index';
+import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, InputData, MiddlewareStatus, OutputContext, PromptComputer, SystemMessageComputer } from './@types/index';
+import { ChatCompletionRequestMessageRoleEnum } from 'openai';
 import { HistoryStorage } from './HistoryStorage';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
@@ -19,7 +20,11 @@ export declare class LlmOrchestrator {
     static createInstance(cfg: Config, sms: SystemMessageService, ps: PromptService, hs: HistoryStorage): Promise<LlmOrchestrator>;
     private initialize;
     chatCompletion(data: InputData): Promise<void>;
-    injectPromptAndSend(promptName: string, userInput: InputContext): Promise<void>;
+    injectPromptAndSend(promptName: string, sessionId: string, message: string, promptRole?: ChatCompletionRequestMessageRoleEnum, messageRole?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
+    callAgain(sessionId: string, message: string, role?: ChatCompletionRequestMessageRoleEnum): Promise<{
+        status?: MiddlewareStatus;
+        newOutputContext: OutputContext | undefined;
+    }>;
     syncSystemMessagesAndPrompts(): Promise<void>;
     useComputeSystemMessage(name: string, handler: SystemMessageComputer): void;
     useComputePrompt(name: string, handler: PromptComputer): void;

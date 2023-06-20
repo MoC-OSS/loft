@@ -1,5 +1,5 @@
 import { Redis, Cluster } from 'ioredis';
-import { ChatCompletionRequestMessage, ChatCompletionResponseMessage } from 'openai';
+import { ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum, ChatCompletionResponseMessage } from 'openai';
 import { SessionData } from './@types';
 export declare class HistoryStorage {
     private client;
@@ -9,7 +9,7 @@ export declare class HistoryStorage {
     isExists(sessionId: string): Promise<boolean>;
     createSession(sessionId: string, modelPreset: SessionData['modelPreset'], messages: ChatCompletionRequestMessage[]): Promise<void>;
     updateMessages(sessionId: string, newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage): Promise<void>;
-    replaceLastUserMessage(sessionId: string, newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage): Promise<void>;
+    replaceLastUserMessage(sessionId: string, newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage, role?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
     deleteSession(sessionId: string): Promise<void>;
     getSession(sessionId: string): Promise<SessionData>;
 }
