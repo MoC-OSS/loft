@@ -27,8 +27,8 @@ import { PromptService } from './prompt/PromptService';
 import { ChatCompletionInputSchema } from './schema/ChatCompletionSchema';
 
 export class LlmOrchestrator {
-  private readonly eventManager: EventManager = new EventManager();
-  private readonly llmIOManager: LlmIOManager = new LlmIOManager();
+  private readonly eventManager: EventManager;
+  private readonly llmIOManager: LlmIOManager;
   private readonly openai: OpenAIApi;
 
   private readonly completionQueue!: Queue;
@@ -42,6 +42,8 @@ export class LlmOrchestrator {
     private readonly ps: PromptService,
     private readonly hs: HistoryStorage,
   ) {
+    this.eventManager = new EventManager(this.hs);
+    this.llmIOManager = new LlmIOManager(this.hs);
     this.openai = new OpenAIApi(
       new Configuration({
         apiKey: cfg.openAiKey,
@@ -347,6 +349,8 @@ export class LlmOrchestrator {
           content: computedSystemMessage,
         };
         await this.hs.createSession(chatId, modelPreset, [
+          // chat:history:sessionId:system_message_name
+          // add to validator to check if system message name is not have of spaces
           systemMessage,
           newMessage,
         ]);
@@ -354,8 +358,10 @@ export class LlmOrchestrator {
 
       const chatSession = await this.hs.getSession(chatId);
 
+      const currentTimeInSeconds = Math.floor(Date.now() / 1000);
+
       await this.llmApiCallQueue.add(
-        `llm:call:chat:${chatId}`,
+        `chat:job:session:${chatSession.sessionId}:system_message:${systemMessageName}:time:${currentTimeInSeconds}`, // override job name to chat:job:session:<session_id+system_message_name>:<unique_identifier>
         {
           session: chatSession,
         },

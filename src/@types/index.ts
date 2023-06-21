@@ -9,6 +9,7 @@ export interface SessionData {
   sessionId: string;
   modelPreset: SystemMessageType['modelPreset'];
   messages: ChatCompletionRequestMessage[];
+  ctx: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }

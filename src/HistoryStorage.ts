@@ -35,6 +35,7 @@ export class HistoryStorage {
       sessionId,
       modelPreset,
       messages,
+      ctx: {},
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -114,6 +115,24 @@ export class HistoryStorage {
   //   return sessionData.messages;
   // }
 
+  async upsertCtx(sessionId: string, ctx: Record<string, unknown>) {
+    const sessionKey = this.getSessionKey(sessionId);
+    const session = await this.getSession(sessionKey);
+
+    if (this.deepEqual(session.ctx, ctx)) return session; //skip if ctx is the same
+
+    session.ctx = ctx;
+
+    await this.client.set(
+      sessionKey,
+      JSON.stringify(session),
+      'EX',
+      this.sessionTtl,
+    );
+
+    return this.getSession(sessionId);
+  }
+
   async getSession(sessionId: string): Promise<SessionData> {
     const sessionKey = this.getSessionKey(sessionId);
     const sessionData = await this.client.get(sessionKey);
@@ -121,5 +140,35 @@ export class HistoryStorage {
       throw new Error(`Session ${sessionId} not found`);
     }
     return JSON.parse(sessionData);
+  }
+
+  private deepEqual(obj1: Record<string, any>, obj2: Record<string, any>) {
+    if (obj1 === obj2) {
+      return true;
+    }
+
+    if (
+      typeof obj1 !== 'object' ||
+      obj1 === null ||
+      typeof obj2 !== 'object' ||
+      obj2 === null
+    ) {
+      return false;
+    }
+
+    let keys1 = Object.keys(obj1);
+    let keys2 = Object.keys(obj2);
+
+    if (keys1.length !== keys2.length) {
+      return false;
+    }
+
+    for (let key of keys1) {
+      if (!keys2.includes(key) || !this.deepEqual(obj1[key], obj2[key])) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }
