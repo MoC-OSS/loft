@@ -189,3 +189,4 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
 8. [x] add user context to middlewares, handlers, etc...
 9. [x] add method to create injections using systemMessageName
 10. [x] add method for clear session
+11. [x] add ability to write data to session context

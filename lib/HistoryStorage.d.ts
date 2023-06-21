@@ -13,6 +13,8 @@ export declare class HistoryStorage {
     deleteSession(sessionId: string): Promise<void>;
     deleteSessionsById(sessionId: string): Promise<void>;
     findKeysByPartialName(partialKey: string): Promise<string[]>;
+    upsertCtx(sessionId: string, ctx: Record<string, unknown>): Promise<SessionData>;
     getSession(sessionId: string): Promise<SessionData>;
+    private deepEqual;
 }
 //# sourceMappingURL=HistoryStorage.d.ts.map

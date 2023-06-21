@@ -1,4 +1,5 @@
 import { OutputContext } from './@types';
+import { HistoryStorage } from './HistoryStorage';
 export type EventDetector = (response: OutputContext, next: () => Promise<void>) => Promise<boolean>;
 export type Handler = (response: OutputContext, next: () => Promise<void>) => Promise<void>;
 export interface EventHandler {
@@ -12,9 +13,10 @@ export interface TriggeredEvent {
     priority: number;
 }
 export declare class EventManager {
+    private readonly hs;
     private eventHandlers;
     private defaultEventHandler;
-    constructor();
+    constructor(hs: HistoryStorage);
     use(name: string, eventHandler: EventHandler): void;
     useDefault(eventHandler: defaultHandler): void;
     executeEventHandlers(response: OutputContext): Promise<void>;
