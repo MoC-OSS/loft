@@ -3,42 +3,63 @@ import {
   ChatCompletionRequestMessage,
   ChatCompletionRequestMessageRoleEnum,
   ChatCompletionResponseMessage,
+  ChatCompletionResponseMessageRoleEnum,
 } from 'openai';
 import { SessionData } from './@types';
+import { deepEqual } from './helpers';
 
 export class HistoryStorage {
-  private client: Redis | Cluster;
-  private sessionTtl: number;
+  constructor(
+    private readonly client: Redis | Cluster,
+    private readonly sessionTtl: number,
+    private readonly appName: string,
+  ) {}
 
-  constructor(client: Redis | Cluster, sessionTtl: number) {
-    this.client = client;
-    this.sessionTtl = sessionTtl;
+  private getChatCompletionSessionKey(
+    sessionId: string,
+    systemMessageName: string,
+  ): string {
+    return `app:${this.appName}:api_type:chat_completion:function:session_storage:session:${sessionId}:system_message:${systemMessageName}`;
   }
 
-  private getSessionKey(sessionId: string): string {
-    return `chat:${sessionId}`;
-  }
-
-  async isExists(sessionId: string): Promise<boolean> {
-    const sessionKey = this.getSessionKey(sessionId);
+  async isExists(
+    sessionId: string,
+    systemMessageName: string,
+  ): Promise<boolean> {
+    const sessionKey = this.getChatCompletionSessionKey(
+      sessionId,
+      systemMessageName,
+    );
     const result = await this.client.exists(sessionKey);
     return result === 1;
   }
 
   async createSession(
     sessionId: string,
+    systemMessageName: string,
     modelPreset: SessionData['modelPreset'],
-    messages: ChatCompletionRequestMessage[],
+    message: ChatCompletionRequestMessage,
   ): Promise<void> {
-    const sessionKey = this.getSessionKey(sessionId);
+    const sessionKey = this.getChatCompletionSessionKey(
+      sessionId,
+      systemMessageName,
+    );
     const sessionData: SessionData = {
       sessionId,
+      systemMessageName,
       modelPreset,
-      messages,
+      messages: [message],
+      lastMessageByRole: {
+        user: null,
+        assistant: null,
+        system: message,
+        function: null,
+      },
       ctx: {},
       createdAt: new Date(),
       updatedAt: new Date(),
     };
+
     await this.client.set(
       sessionKey,
       JSON.stringify(sessionData),
@@ -49,13 +70,28 @@ export class HistoryStorage {
 
   async updateMessages(
     sessionId: string,
+    systemMessageName: string,
     newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage,
   ): Promise<void> {
     try {
-      const sessionKey = this.getSessionKey(sessionId);
-      const sessionData = await this.getSession(sessionId);
+      const sessionKey = this.getChatCompletionSessionKey(
+        sessionId,
+        systemMessageName,
+      );
+
+      const sessionData = await this.getSession(sessionId, systemMessageName);
       sessionData.messages.push(newMessage);
       sessionData.updatedAt = new Date();
+
+      if (newMessage.role === ChatCompletionResponseMessageRoleEnum.User)
+        sessionData.lastMessageByRole.user = newMessage;
+      if (newMessage.role === ChatCompletionResponseMessageRoleEnum.Assistant)
+        sessionData.lastMessageByRole.assistant = newMessage;
+      if (newMessage.role === ChatCompletionResponseMessageRoleEnum.System)
+        sessionData.lastMessageByRole.system = newMessage;
+      if (newMessage.role === ChatCompletionResponseMessageRoleEnum.Function)
+        sessionData.lastMessageByRole.function = newMessage;
+
       await this.client.set(
         sessionKey,
         JSON.stringify(sessionData),
@@ -70,15 +106,19 @@ export class HistoryStorage {
 
   async replaceLastUserMessage(
     sessionId: string,
+    systemMessageName: string,
     newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage,
     role: ChatCompletionRequestMessageRoleEnum = 'user',
   ) {
-    const session = await this.getSession(sessionId);
+    const session = await this.getSession(sessionId, systemMessageName);
     if (session.messages[session.messages.length - 1].role === role) {
       session.updatedAt = new Date();
       session.messages[session.messages.length - 1].content =
         newMessage.content;
-      const sessionKey = this.getSessionKey(sessionId);
+      const sessionKey = this.getChatCompletionSessionKey(
+        sessionId,
+        systemMessageName,
+      );
 
       await this.client.set(
         sessionKey,
@@ -91,8 +131,14 @@ export class HistoryStorage {
     }
   }
 
-  async deleteSession(sessionId: string): Promise<void> {
-    const sessionKey = this.getSessionKey(sessionId);
+  async deleteSession(
+    sessionId: string,
+    systemMessageName: string,
+  ): Promise<void> {
+    const sessionKey = this.getChatCompletionSessionKey(
+      sessionId,
+      systemMessageName,
+    );
     await this.client.del(sessionKey);
   }
 
@@ -115,11 +161,18 @@ export class HistoryStorage {
   //   return sessionData.messages;
   // }
 
-  async upsertCtx(sessionId: string, ctx: Record<string, unknown>) {
-    const sessionKey = this.getSessionKey(sessionId);
-    const session = await this.getSession(sessionKey);
+  async upsertCtx(
+    sessionId: string,
+    systemMessageName: string,
+    ctx: Record<string, unknown>,
+  ) {
+    const sessionKey = this.getChatCompletionSessionKey(
+      sessionId,
+      systemMessageName,
+    );
+    const session = await this.getSession(sessionKey, systemMessageName);
 
-    if (this.deepEqual(session.ctx, ctx)) return session; //skip if ctx is the same
+    if (deepEqual(session.ctx, ctx)) return session; //skip if ctx is the same
 
     session.ctx = ctx;
 
@@ -130,45 +183,21 @@ export class HistoryStorage {
       this.sessionTtl,
     );
 
-    return this.getSession(sessionId);
+    return this.getSession(sessionId, systemMessageName);
   }
 
-  async getSession(sessionId: string): Promise<SessionData> {
-    const sessionKey = this.getSessionKey(sessionId);
+  async getSession(
+    sessionId: string,
+    systemMessageName: string,
+  ): Promise<SessionData> {
+    const sessionKey = this.getChatCompletionSessionKey(
+      sessionId,
+      systemMessageName,
+    );
     const sessionData = await this.client.get(sessionKey);
     if (!sessionData) {
       throw new Error(`Session ${sessionId} not found`);
     }
-    return JSON.parse(sessionData);
-  }
-
-  private deepEqual(obj1: Record<string, any>, obj2: Record<string, any>) {
-    if (obj1 === obj2) {
-      return true;
-    }
-
-    if (
-      typeof obj1 !== 'object' ||
-      obj1 === null ||
-      typeof obj2 !== 'object' ||
-      obj2 === null
-    ) {
-      return false;
-    }
-
-    let keys1 = Object.keys(obj1);
-    let keys2 = Object.keys(obj2);
-
-    if (keys1.length !== keys2.length) {
-      return false;
-    }
-
-    for (let key of keys1) {
-      if (!keys2.includes(key) || !this.deepEqual(obj1[key], obj2[key])) {
-        return false;
-      }
-    }
-
-    return true;
+    return { ...JSON.parse(sessionData), update: this.upsertCtx };
   }
 }

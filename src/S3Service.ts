@@ -18,7 +18,7 @@ export class S3Service {
     private readonly env: string,
     private readonly region: string,
     private readonly bucketName: string,
-    private readonly botName: string,
+    private readonly appName: string,
   ) {
     this.client = new S3Client({ region: this.region });
     const command = new PutBucketLifecycleConfigurationCommand(
@@ -49,7 +49,7 @@ export class S3Service {
 
   async getSystemMessages(): Promise<CreateChatCompletionRequestType> {
     try {
-      const fileName = `${this.botName}/${this.env}/system_messages.json`;
+      const fileName = `${this.appName}/${this.env}/system_messages.json`;
       const file = await this.getFile(fileName);
 
       if (file === null || file === undefined) {
@@ -70,7 +70,7 @@ export class S3Service {
 
   async getPrompts(): Promise<PromptsFileType> {
     try {
-      const fileName = `${this.botName}/${this.env}/prompts.json`;
+      const fileName = `${this.appName}/${this.env}/prompts.json`;
       const file = await this.getFile(fileName);
 
       if (file === null || file === undefined) {
@@ -92,7 +92,7 @@ export class S3Service {
   async logToS3(data: string) {
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
-      Key: `${this.botName}/${this.env}/log_errors.txt`,
+      Key: `${this.appName}/${this.env}/log_errors.txt`,
       Body: data,
     });
 

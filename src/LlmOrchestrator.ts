@@ -25,6 +25,7 @@ import { LlmIOManager } from './LlmIoManager';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
 import { ChatCompletionInputSchema } from './schema/ChatCompletionSchema';
+import { sanitizeAndValidateRedisKey } from './helpers';
 
 export class LlmOrchestrator {
   private readonly eventManager: EventManager;
@@ -60,7 +61,7 @@ export class LlmOrchestrator {
 
     this.completionWorker = new Worker(
       'chatCompletionQueue',
-      async (job) => this.chatCompletionProcessor(job),
+      async (job) => this.chatCompletionBeginProcessor(job),
       {
         connection: {
           host: this.cfg.redisHost,
@@ -68,6 +69,7 @@ export class LlmOrchestrator {
           db: this.cfg.bullMqDb,
         },
         autorun: false,
+        lockDuration: this.cfg.jobsLockDuration || 60000, // 1 minute by default
       },
     );
 
@@ -81,7 +83,7 @@ export class LlmOrchestrator {
 
     this.llmApiCallWorker = new Worker(
       'llmApiCallQueue',
-      async (job) => this.llmApiCallProcessor(job),
+      async (job) => this.chatCompletionCallProcessor(job),
       {
         limiter: {
           max: this.cfg.openAiRateLimiter.max,
@@ -94,6 +96,7 @@ export class LlmOrchestrator {
           db: this.cfg.bullMqDb,
         },
         autorun: false,
+        lockDuration: this.cfg.jobsLockDuration || 60000, // 1 minute by default
       },
     );
 
@@ -122,14 +125,19 @@ export class LlmOrchestrator {
   public async chatCompletion(data: InputData) {
     try {
       const chatData = ChatCompletionInputSchema.parse(data);
-      await this.completionQueue.add(
-        `input:process:chat:${data.chatId}`,
-        chatData,
-        {
-          removeOnComplete: true,
-          attempts: 3,
-        },
+      const jobKey = sanitizeAndValidateRedisKey(
+        `app:${
+          this.cfg.appName
+        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_begin_processor:intent:processing_new_or_existing_session:session:${
+          chatData.sessionId
+        }:system_message:${
+          chatData.systemMessageName
+        }:time:${this.getTimastamp()}`,
       );
+      await this.completionQueue.add(jobKey, chatData, {
+        removeOnComplete: true,
+        attempts: 3,
+      });
     } catch (error) {
       console.log(error);
     }
@@ -138,14 +146,15 @@ export class LlmOrchestrator {
   async injectPromptAndSend(
     promptName: string,
     sessionId: string,
+    systemMessageName: string,
     message: string,
     promptRole: ChatCompletionRequestMessageRoleEnum = 'user',
     messageRole: ChatCompletionRequestMessageRoleEnum = 'user',
   ) {
-    if (!(await this.hs.isExists(sessionId)))
+    if (!(await this.hs.isExists(sessionId, systemMessageName)))
       throw new Error("inject prompt failed: chatId doesn't exist");
 
-    const prevSession = await this.hs.getSession(sessionId);
+    const prevSession = await this.hs.getSession(sessionId, systemMessageName);
 
     const promptData = await this.ps.computePrompt(promptName, prevSession);
     const userPrompt: ChatCompletionRequestMessage = {
@@ -188,13 +197,16 @@ export class LlmOrchestrator {
       throw error;
     }
 
-    await this.hs.updateMessages(sessionId, userPrompt);
-    await this.hs.updateMessages(sessionId, newMessage);
-    const session = await this.hs.getSession(sessionId);
+    await this.hs.updateMessages(sessionId, systemMessageName, userPrompt);
+    await this.hs.updateMessages(sessionId, systemMessageName, newMessage);
+    const session = await this.hs.getSession(sessionId, systemMessageName);
 
-    await this.llmApiCallQueue.add(`insert:with:prompt:llm:${sessionId}`, {
-      session,
-    });
+    const jobKey = sanitizeAndValidateRedisKey(
+      `app:${
+        this.cfg.appName
+      }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:prompt_injection:session:${sessionId}:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
+    );
+    await this.llmApiCallQueue.add(jobKey, { session });
   }
 
   /* 
@@ -204,6 +216,7 @@ export class LlmOrchestrator {
    */
   public async callAgain(
     sessionId: string,
+    systemMessageName: string,
     message: string,
     role: ChatCompletionRequestMessageRoleEnum = 'user',
   ): Promise<{
@@ -211,7 +224,7 @@ export class LlmOrchestrator {
     newOutputContext: OutputContext | undefined;
   }> {
     try {
-      if (!(await this.hs.isExists(sessionId)))
+      if (!(await this.hs.isExists(sessionId, systemMessageName)))
         throw new Error("inject prompt failed: chatId doesn't exist");
 
       const processedInputContext =
@@ -225,11 +238,20 @@ export class LlmOrchestrator {
         role,
       };
 
-      this.hs.replaceLastUserMessage(sessionId, newMessage, role);
-      const session = await this.hs.getSession(sessionId);
-      await this.llmApiCallQueue.add(`input:recall:llm:${sessionId}`, {
-        session,
-      });
+      this.hs.replaceLastUserMessage(
+        sessionId,
+        systemMessageName,
+        newMessage,
+        role,
+      );
+      const session = await this.hs.getSession(sessionId, systemMessageName);
+
+      const jobKey = sanitizeAndValidateRedisKey(
+        `app:${
+          this.cfg.appName
+        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:call_again:session:${sessionId}:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
+      );
+      await this.llmApiCallQueue.add(jobKey, { session });
 
       return {
         status: MiddlewareStatus.CALL_AGAIN,
@@ -278,13 +300,14 @@ export class LlmOrchestrator {
     this.llmIOManager.useOutput(name, middleware);
   }
 
-  private async llmApiCallProcessor(
+  private async chatCompletionCallProcessor(
     job: Job | { data: { session: SessionData } },
   ) {
     try {
       let { session } = job.data;
       const {
         sessionId,
+        systemMessageName,
         messages,
         modelPreset: { model },
       } = session;
@@ -307,13 +330,17 @@ export class LlmOrchestrator {
        LlmOrchestrator.callAgain() will change last user message in history 
        add new job to llmApiCallQueue to recall LLM API
       */
-      if (status === MiddlewareStatus.CALL_AGAIN) return;
+      if (
+        status === MiddlewareStatus.CALL_AGAIN ||
+        status === MiddlewareStatus.STOP
+      )
+        return;
 
       const outputMessage = outputContext.llmResponse?.choices[0].message;
       if (!outputMessage)
         throw new Error('LLM API response after OutputMiddlewares is empty!');
-      await this.hs.updateMessages(sessionId, outputMessage);
-      session = await this.hs.getSession(sessionId);
+      await this.hs.updateMessages(sessionId, systemMessageName, outputMessage);
+      session = await this.hs.getSession(sessionId, systemMessageName);
 
       await this.eventManager.executeEventHandlers({
         ...outputContext,
@@ -325,9 +352,9 @@ export class LlmOrchestrator {
     }
   }
 
-  private async chatCompletionProcessor(job: Job | { data: InputData }) {
+  private async chatCompletionBeginProcessor(job: Job | { data: InputData }) {
     try {
-      const { systemMessage: systemMessageName, chatId } = job.data;
+      const { systemMessageName, chatId } = job.data;
       const { message: processedMessage } =
         await this.llmIOManager.executeInputMiddlewareChain(
           job.data as InputContext,
@@ -338,8 +365,8 @@ export class LlmOrchestrator {
         content: processedMessage,
       };
 
-      if (await this.hs.isExists(chatId)) {
-        await this.hs.updateMessages(chatId, newMessage);
+      if (await this.hs.isExists(chatId, systemMessageName)) {
+        await this.hs.updateMessages(chatId, systemMessageName, newMessage);
       } else {
         const { systemMessage: computedSystemMessage, modelPreset } =
           await this.sms.computeSystemMessage(systemMessageName, job.data);
@@ -348,20 +375,26 @@ export class LlmOrchestrator {
           role: 'system',
           content: computedSystemMessage,
         };
-        await this.hs.createSession(chatId, modelPreset, [
-          // chat:history:sessionId:system_message_name
-          // add to validator to check if system message name is not have of spaces
+        await this.hs.createSession(
+          chatId,
+          systemMessageName,
+          modelPreset,
           systemMessage,
-          newMessage,
-        ]);
+        );
+        await this.hs.updateMessages(chatId, systemMessageName, newMessage);
       }
 
-      const chatSession = await this.hs.getSession(chatId);
+      const chatSession = await this.hs.getSession(chatId, systemMessageName);
 
-      const currentTimeInSeconds = Math.floor(Date.now() / 1000);
-
+      const jobKey = sanitizeAndValidateRedisKey(
+        `app:${
+          this.cfg.appName
+        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:continue_chat_processing:session:${
+          chatSession.sessionId
+        }:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
+      );
       await this.llmApiCallQueue.add(
-        `chat:job:session:${chatSession.sessionId}:system_message:${systemMessageName}:time:${currentTimeInSeconds}`, // override job name to chat:job:session:<session_id+system_message_name>:<unique_identifier>
+        jobKey,
         {
           session: chatSession,
         },
@@ -371,5 +404,9 @@ export class LlmOrchestrator {
       console.log(error);
       throw error;
     }
+  }
+
+  private getTimastamp() {
+    return Math.floor(Date.now() / 1000); // unix timestamp in seconds
   }
 }

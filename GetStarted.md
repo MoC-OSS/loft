@@ -35,7 +35,7 @@ This documentation provides a step-by-step guide on setting up and using the LLM
       cfg.NODE_ENV,
       cfg.S3_REGION,
       cfg.S3_BUCKET_NAME,
-      cfg.BOT_NAME
+      cfg.APP_NAME
     );
 
     const sms = new SystemMessageService(systemMessageStorage, s3);
@@ -50,6 +50,7 @@ This documentation provides a step-by-step guide on setting up and using the LLM
     llm = await LlmOrchestrator.createInstance(
       {
         nodeEnv: cfg.NODE_ENV,
+        appName: cfg.APP_NAME,
         redisHost: cfg.REDIS_HOST,
         redisPort: cfg.REDIS_PORT,
         bullMqDb: cfg.BULLMQ_DB,
@@ -190,3 +191,7 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
 9. [x] add method to create injections using systemMessageName
 10. [x] add method for clear session
 11. [x] add ability to write data to session context
+12. [x] add last role message to session
+13. [x] add .update method to session.ctx.update()
+14. [x] add job time to config
+15. [ ] refactor HistoryStorage to Entity Based way Session class

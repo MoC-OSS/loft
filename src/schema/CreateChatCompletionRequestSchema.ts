@@ -1,9 +1,15 @@
 import { z } from 'zod';
+import { redisKeyRegex } from '../helpers';
 
 export const createChatCompletionRequestSchema = z.object({
   systemMessages: z.array(
     z.object({
-      name: z.string(),
+      name: z
+        .string()
+        .refine(
+          (name) => redisKeyRegex.test(name),
+          'Invalid systemMessages.name value. Allowed only alphanumeric characters (a-z, A-Z, 0-9) and the specified symbols (: . - _)',
+        ),
       systemMessage: z.string(),
       modelPreset: z.object({
         model: z

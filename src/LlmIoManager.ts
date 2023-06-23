@@ -105,7 +105,8 @@ export class LlmIOManager {
 
           if (newOutputContext)
             modifiedContext.session = await this.hs.upsertCtx(
-              newOutputContext?.session.sessionId,
+              outputContext.session.sessionId,
+              outputContext.session.systemMessageName,
               newOutputContext?.session.ctx,
             );
 

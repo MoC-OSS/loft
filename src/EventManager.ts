@@ -91,8 +91,9 @@ export class EventManager {
 
             if (response)
               response.session = await this.hs.upsertCtx(
-                response?.session.sessionId,
-                response?.session.ctx,
+                response.session.sessionId,
+                response.session.systemMessageName,
+                response.session.ctx,
               );
           } catch (error) {
             console.error(

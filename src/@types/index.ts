@@ -1,5 +1,6 @@
 import {
   ChatCompletionRequestMessage,
+  ChatCompletionResponseMessage,
   CreateChatCompletionResponse,
 } from 'openai';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
@@ -7,16 +8,23 @@ import { PromptType } from '../schema/PromptSchema';
 
 export interface SessionData {
   sessionId: string;
+  systemMessageName: string;
   modelPreset: SystemMessageType['modelPreset'];
   messages: ChatCompletionRequestMessage[];
+  lastMessageByRole: {
+    user: ChatCompletionRequestMessage | null;
+    assistant: ChatCompletionResponseMessage | null;
+    system: ChatCompletionResponseMessage | null;
+    function: ChatCompletionResponseMessage | null;
+  };
   ctx: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
 export interface InputData {
-  systemMessage: string;
+  systemMessageName: string;
   message: string;
-  chatId: string;
+  sessionId: string;
   intent?: string;
 }
 export interface InputContext {
@@ -33,6 +41,7 @@ export type IOContext = InputContext | OutputContext;
 
 export interface Config {
   nodeEnv: string;
+  appName: string;
   redisHost: string;
   redisPort: number;
   bullMqDb: number;
@@ -57,6 +66,7 @@ export interface Config {
      */
     concurrency: number;
   };
+  jobsLockDuration: number; // in milliseconds
 }
 
 export enum MiddlewareStatus {
