@@ -16,5 +16,6 @@ export declare class HistoryStorage {
     findKeysByPartialName(partialKey: string): Promise<string[]>;
     upsertCtx(sessionId: string, systemMessageName: string, ctx: Record<string, unknown>): Promise<SessionData>;
     getSession(sessionId: string, systemMessageName: string): Promise<SessionData>;
+    private deepEqual;
 }
-//# sourceMappingURL=HistoryStorage.d.ts.map
+//# sourceMappingURL=HistoryStorage%20copy.d.ts.map

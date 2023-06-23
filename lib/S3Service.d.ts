@@ -5,9 +5,9 @@ export declare class S3Service {
     private readonly env;
     private readonly region;
     private readonly bucketName;
-    private readonly botName;
+    private readonly appName;
     private readonly client;
-    constructor(env: string, region: string, bucketName: string, botName: string);
+    constructor(env: string, region: string, bucketName: string, appName: string);
     getFile(filename: string): Promise<import("@aws-sdk/types").SdkStream<import("stream").Readable | ReadableStream<any> | Blob | undefined> | null | undefined>;
     getSystemMessages(): Promise<CreateChatCompletionRequestType>;
     getPrompts(): Promise<PromptsFileType>;

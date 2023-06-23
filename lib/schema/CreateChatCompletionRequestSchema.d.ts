@@ -1,7 +1,7 @@
 import { z } from 'zod';
 export declare const createChatCompletionRequestSchema: z.ZodObject<{
     systemMessages: z.ZodArray<z.ZodObject<{
-        name: z.ZodString;
+        name: z.ZodEffects<z.ZodString, string, string>;
         systemMessage: z.ZodString;
         modelPreset: z.ZodObject<{
             model: z.ZodString;

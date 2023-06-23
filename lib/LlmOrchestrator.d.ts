@@ -20,8 +20,8 @@ export declare class LlmOrchestrator {
     static createInstance(cfg: Config, sms: SystemMessageService, ps: PromptService, hs: HistoryStorage): Promise<LlmOrchestrator>;
     private initialize;
     chatCompletion(data: InputData): Promise<void>;
-    injectPromptAndSend(promptName: string, sessionId: string, message: string, promptRole?: ChatCompletionRequestMessageRoleEnum, messageRole?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
-    callAgain(sessionId: string, message: string, role?: ChatCompletionRequestMessageRoleEnum): Promise<{
+    injectPromptAndSend(promptName: string, sessionId: string, systemMessageName: string, message: string, promptRole?: ChatCompletionRequestMessageRoleEnum, messageRole?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
+    callAgain(sessionId: string, systemMessageName: string, message: string, role?: ChatCompletionRequestMessageRoleEnum): Promise<{
         status?: MiddlewareStatus;
         newOutputContext: OutputContext | undefined;
     }>;
@@ -33,7 +33,8 @@ export declare class LlmOrchestrator {
     useEventHandler(name: string, eventHandler: EventHandler): void;
     useLLMInput(name: string, middleware: AsyncLLMInputMiddleware): void;
     useLLMOutput(name: string, middleware: AsyncLLMOutputMiddleware): void;
-    private llmApiCallProcessor;
-    private chatCompletionProcessor;
+    private chatCompletionCallProcessor;
+    private chatCompletionBeginProcessor;
+    private getTimastamp;
 }
 //# sourceMappingURL=LlmOrchestrator.d.ts.map
