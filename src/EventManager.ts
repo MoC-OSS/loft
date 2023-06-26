@@ -1,6 +1,4 @@
-import { InputContext, OutputContext } from './@types';
-import { HistoryStorage } from './HistoryStorage';
-
+import { OutputContext } from './@types';
 export type EventDetector = (
   response: OutputContext,
   next: () => Promise<void>,
@@ -28,7 +26,7 @@ export class EventManager {
   private eventHandlers: Map<string, EventHandler>;
   private defaultEventHandler: defaultHandler;
 
-  constructor(private readonly hs: HistoryStorage) {
+  constructor() {
     this.defaultEventHandler = () => {
       console.error(
         'No Default Event Handler defined. Please define using useDefaultHandler(response: string): Promise<void>',
@@ -88,13 +86,6 @@ export class EventManager {
         if (eventHandler) {
           try {
             await eventHandler.handler(response, () => Promise.resolve());
-
-            if (response)
-              response.session = await this.hs.upsertCtx(
-                response.session.sessionId,
-                response.session.systemMessageName,
-                response.session.ctx,
-              );
           } catch (error) {
             console.error(
               `Error occurred in handler of event handler ${name}: ${error}`,
@@ -107,8 +98,4 @@ export class EventManager {
       console.error(`Error occurred while executing event handlers: ${error}`);
     }
   }
-}
-
-async function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

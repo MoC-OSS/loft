@@ -9,7 +9,6 @@ import {
   MiddlewareStatus,
   OutputContext,
 } from './@types';
-import { HistoryStorage } from './HistoryStorage';
 
 export type InputMiddlewareContext = {
   message: string;
@@ -19,7 +18,7 @@ export class LlmIOManager {
   private llmInputMiddlewareChain: LLMInputMiddlewares = new Map();
   private llmOutputMiddlewareChain: LLMOutputMiddlewares = new Map();
 
-  constructor(private readonly hs: HistoryStorage) {}
+  constructor() {}
 
   useInput(name: string, middleware: AsyncLLMInputMiddleware) {
     if (this.llmInputMiddlewareChain.has(middleware.name)) {
@@ -102,13 +101,6 @@ export class LlmIOManager {
               return next(modifiedContext);
             },
           );
-
-          if (newOutputContext)
-            modifiedContext.session = await this.hs.upsertCtx(
-              outputContext.session.sessionId,
-              outputContext.session.systemMessageName,
-              newOutputContext?.session.ctx,
-            );
 
           middlewareStatuses.push({
             name,

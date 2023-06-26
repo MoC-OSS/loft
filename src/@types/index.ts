@@ -5,6 +5,7 @@ import {
 } from 'openai';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { PromptType } from '../schema/PromptSchema';
+import { Session } from '../session/Session';
 
 export interface SessionData {
   sessionId: string;
@@ -33,7 +34,7 @@ export interface InputContext {
 }
 
 export interface OutputContext {
-  session: SessionData;
+  session: Session;
   llmResponse?: CreateChatCompletionResponse;
 }
 

@@ -5,10 +5,11 @@ import {
   ChatCompletionResponseMessage,
   ChatCompletionResponseMessageRoleEnum,
 } from 'openai';
-import { SessionData } from './@types';
-import { deepEqual } from './helpers';
+import { SessionData } from '../@types';
+import { deepEqual } from '../helpers';
+import { Session } from './Session';
 
-export class HistoryStorage {
+export class SessionStorage {
   constructor(
     private readonly client: Redis | Cluster,
     private readonly sessionTtl: number,
@@ -146,7 +147,7 @@ export class HistoryStorage {
     const keys = await this.findKeysByPartialName(sessionId);
     await this.client.del(keys);
   }
-  async findKeysByPartialName(partialKey: string) {
+  private async findKeysByPartialName(partialKey: string) {
     try {
       return this.client.keys(`*${partialKey}*`);
     } catch (error) {
@@ -154,14 +155,8 @@ export class HistoryStorage {
       throw error;
     }
   }
-  // async getMessages(
-  //   sessionId: string,
-  // ): Promise<ChatCompletionRequestMessage[]> {
-  //   const sessionData = await this.getSession(sessionId);
-  //   return sessionData.messages;
-  // }
 
-  async upsertCtx(
+  async saveCtx(
     sessionId: string,
     systemMessageName: string,
     ctx: Record<string, unknown>,
@@ -198,6 +193,10 @@ export class HistoryStorage {
     if (!sessionData) {
       throw new Error(`Session ${sessionId} not found`);
     }
-    return { ...JSON.parse(sessionData), update: this.upsertCtx };
+
+    const SessionData = JSON.parse(sessionData) as SessionData;
+    const session = new Session(this, SessionData);
+
+    return session;
   }
 }

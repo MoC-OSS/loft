@@ -20,12 +20,13 @@ import {
   Configuration,
   OpenAIApi,
 } from 'openai';
-import { HistoryStorage } from './HistoryStorage';
+import { SessionStorage } from './session/SessionStorage';
 import { LlmIOManager } from './LlmIoManager';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
 import { ChatCompletionInputSchema } from './schema/ChatCompletionSchema';
 import { sanitizeAndValidateRedisKey } from './helpers';
+import { Session } from './session/Session';
 
 export class LlmOrchestrator {
   private readonly eventManager: EventManager;
@@ -41,10 +42,10 @@ export class LlmOrchestrator {
     private readonly cfg: Config,
     private readonly sms: SystemMessageService,
     private readonly ps: PromptService,
-    private readonly hs: HistoryStorage,
+    private readonly hs: SessionStorage,
   ) {
-    this.eventManager = new EventManager(this.hs);
-    this.llmIOManager = new LlmIOManager(this.hs);
+    this.eventManager = new EventManager();
+    this.llmIOManager = new LlmIOManager();
     this.openai = new OpenAIApi(
       new Configuration({
         apiKey: cfg.openAiKey,
@@ -109,7 +110,7 @@ export class LlmOrchestrator {
     cfg: Config,
     sms: SystemMessageService,
     ps: PromptService,
-    hs: HistoryStorage,
+    hs: SessionStorage,
   ): Promise<LlmOrchestrator> {
     const instance = new LlmOrchestrator(cfg, sms, ps, hs);
     await instance.initialize();
@@ -145,12 +146,13 @@ export class LlmOrchestrator {
 
   async injectPromptAndSend(
     promptName: string,
-    sessionId: string,
-    systemMessageName: string,
+    session: Session,
     message: string,
     promptRole: ChatCompletionRequestMessageRoleEnum = 'user',
     messageRole: ChatCompletionRequestMessageRoleEnum = 'user',
   ) {
+    const { sessionId, systemMessageName } = session;
+
     if (!(await this.hs.isExists(sessionId, systemMessageName)))
       throw new Error("inject prompt failed: chatId doesn't exist");
 
@@ -199,14 +201,14 @@ export class LlmOrchestrator {
 
     await this.hs.updateMessages(sessionId, systemMessageName, userPrompt);
     await this.hs.updateMessages(sessionId, systemMessageName, newMessage);
-    const session = await this.hs.getSession(sessionId, systemMessageName);
+    const newSession = await this.hs.getSession(sessionId, systemMessageName);
 
     const jobKey = sanitizeAndValidateRedisKey(
       `app:${
         this.cfg.appName
       }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:prompt_injection:session:${sessionId}:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
     );
-    await this.llmApiCallQueue.add(jobKey, { session });
+    await this.llmApiCallQueue.add(jobKey, { session: newSession });
   }
 
   /* 
@@ -215,8 +217,7 @@ export class LlmOrchestrator {
   returned by callAgain status: MiddlewareStatus.CALL_AGAIN will interrupt the middleware chain and handlers, after that send the new message to the LLM Queue
    */
   public async callAgain(
-    sessionId: string,
-    systemMessageName: string,
+    session: Session,
     message: string,
     role: ChatCompletionRequestMessageRoleEnum = 'user',
   ): Promise<{
@@ -224,6 +225,7 @@ export class LlmOrchestrator {
     newOutputContext: OutputContext | undefined;
   }> {
     try {
+      const { sessionId, systemMessageName } = session;
       if (!(await this.hs.isExists(sessionId, systemMessageName)))
         throw new Error("inject prompt failed: chatId doesn't exist");
 
@@ -244,14 +246,14 @@ export class LlmOrchestrator {
         newMessage,
         role,
       );
-      const session = await this.hs.getSession(sessionId, systemMessageName);
+      const newSession = await this.hs.getSession(sessionId, systemMessageName);
 
       const jobKey = sanitizeAndValidateRedisKey(
         `app:${
           this.cfg.appName
         }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:call_again:session:${sessionId}:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
       );
-      await this.llmApiCallQueue.add(jobKey, { session });
+      await this.llmApiCallQueue.add(jobKey, { session: newSession });
 
       return {
         status: MiddlewareStatus.CALL_AGAIN,
