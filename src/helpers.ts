@@ -1,4 +1,4 @@
-export const redisKeyRegex = /^[a-zA-Z0-9:.-_]*$/;
+export const redisKeyRegex = /^[a-zA-Z0-9:_\.-]*$/;
 
 type SanitizeRedisKey = string;
 export function sanitizeAndValidateRedisKey(key: string): SanitizeRedisKey {

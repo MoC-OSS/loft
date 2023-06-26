@@ -154,7 +154,7 @@ export class LlmOrchestrator {
     const { sessionId, systemMessageName } = session;
 
     if (!(await this.hs.isExists(sessionId, systemMessageName)))
-      throw new Error("inject prompt failed: chatId doesn't exist");
+      throw new Error("inject prompt failed: sessionId doesn't exist");
 
     const prevSession = await this.hs.getSession(sessionId, systemMessageName);
 
@@ -189,7 +189,7 @@ export class LlmOrchestrator {
     if (isHistoryDuplicate) {
       const error = new Error(
         `
-        ChatId: ${sessionId}.
+        sessionId: ${sessionId}.
         PromptName: ${promptName}.
         History duplicate detected.
         Row will be skipped.
@@ -227,7 +227,7 @@ export class LlmOrchestrator {
     try {
       const { sessionId, systemMessageName } = session;
       if (!(await this.hs.isExists(sessionId, systemMessageName)))
-        throw new Error("inject prompt failed: chatId doesn't exist");
+        throw new Error("inject prompt failed: sessionId doesn't exist");
 
       const processedInputContext =
         await this.llmIOManager.executeInputMiddlewareChain({
@@ -356,7 +356,7 @@ export class LlmOrchestrator {
 
   private async chatCompletionBeginProcessor(job: Job | { data: InputData }) {
     try {
-      const { systemMessageName, chatId } = job.data;
+      const { systemMessageName, sessionId } = job.data;
       const { message: processedMessage } =
         await this.llmIOManager.executeInputMiddlewareChain(
           job.data as InputContext,
@@ -367,8 +367,8 @@ export class LlmOrchestrator {
         content: processedMessage,
       };
 
-      if (await this.hs.isExists(chatId, systemMessageName)) {
-        await this.hs.updateMessages(chatId, systemMessageName, newMessage);
+      if (await this.hs.isExists(sessionId, systemMessageName)) {
+        await this.hs.updateMessages(sessionId, systemMessageName, newMessage);
       } else {
         const { systemMessage: computedSystemMessage, modelPreset } =
           await this.sms.computeSystemMessage(systemMessageName, job.data);
@@ -378,15 +378,18 @@ export class LlmOrchestrator {
           content: computedSystemMessage,
         };
         await this.hs.createSession(
-          chatId,
+          sessionId,
           systemMessageName,
           modelPreset,
           systemMessage,
         );
-        await this.hs.updateMessages(chatId, systemMessageName, newMessage);
+        await this.hs.updateMessages(sessionId, systemMessageName, newMessage);
       }
 
-      const chatSession = await this.hs.getSession(chatId, systemMessageName);
+      const chatSession = await this.hs.getSession(
+        sessionId,
+        systemMessageName,
+      );
 
       const jobKey = sanitizeAndValidateRedisKey(
         `app:${

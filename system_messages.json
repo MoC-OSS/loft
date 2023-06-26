@@ -6,6 +6,20 @@
       "modelPreset": {
         "model": "gpt-3.5-turbo"
       }
+    },
+    {
+      "name": "echo",
+      "systemMessage": "text",
+      "modelPreset": {
+        "model": "gpt-3.5-turbo"
+      }
+    },
+    {
+      "name": "non_echo2",
+      "systemMessage": "hello message",
+      "modelPreset": {
+        "model": "gpt-3.5-turbo"
+      }
     }
   ]
 }
