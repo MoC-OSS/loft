@@ -1,9 +1,10 @@
 import { EventHandler, defaultHandler } from './EventManager';
 import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, InputData, MiddlewareStatus, OutputContext, PromptComputer, SystemMessageComputer } from './@types/index';
 import { ChatCompletionRequestMessageRoleEnum } from 'openai';
-import { HistoryStorage } from './HistoryStorage';
+import { SessionStorage } from './session/SessionStorage';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
+import { Session } from './session/Session';
 export declare class LlmOrchestrator {
     private readonly cfg;
     private readonly sms;
@@ -17,11 +18,11 @@ export declare class LlmOrchestrator {
     private readonly llmApiCallQueue;
     private readonly llmApiCallWorker;
     private constructor();
-    static createInstance(cfg: Config, sms: SystemMessageService, ps: PromptService, hs: HistoryStorage): Promise<LlmOrchestrator>;
+    static createInstance(cfg: Config, sms: SystemMessageService, ps: PromptService, hs: SessionStorage): Promise<LlmOrchestrator>;
     private initialize;
     chatCompletion(data: InputData): Promise<void>;
-    injectPromptAndSend(promptName: string, sessionId: string, systemMessageName: string, message: string, promptRole?: ChatCompletionRequestMessageRoleEnum, messageRole?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
-    callAgain(sessionId: string, systemMessageName: string, message: string, role?: ChatCompletionRequestMessageRoleEnum): Promise<{
+    injectPromptAndSend(promptName: string, session: Session, message: string, promptRole?: ChatCompletionRequestMessageRoleEnum, messageRole?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
+    callAgain(session: Session, message: string, role?: ChatCompletionRequestMessageRoleEnum): Promise<{
         status?: MiddlewareStatus;
         newOutputContext: OutputContext | undefined;
     }>;

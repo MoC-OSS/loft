@@ -1,17 +1,17 @@
 import { z } from 'zod';
 export declare const ChatCompletionInputSchema: z.ZodObject<{
-    systemMessageName: z.ZodString;
+    systemMessageName: z.ZodEffects<z.ZodString, string, string>;
     message: z.ZodString;
     sessionId: z.ZodString;
     intent: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    systemMessageName: string;
     message: string;
+    systemMessageName: string;
     sessionId: string;
     intent: string;
 }, {
-    systemMessageName: string;
     message: string;
+    systemMessageName: string;
     sessionId: string;
     intent: string;
 }>;
