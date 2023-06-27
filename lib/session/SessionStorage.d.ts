@@ -14,6 +14,7 @@ export declare class SessionStorage {
     deleteSession(sessionId: string, systemMessageName: string): Promise<void>;
     deleteSessionsById(sessionId: string): Promise<void>;
     private findKeysByPartialName;
+    incrementHandlerCount(sessionId: string, systemMessageName: string, handlerName: string): Promise<void>;
     saveCtx(sessionId: string, systemMessageName: string, ctx: Record<string, unknown>): Promise<SessionData>;
     getSession(sessionId: string, systemMessageName: string): Promise<SessionData>;
 }

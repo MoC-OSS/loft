@@ -1,10 +1,15 @@
-import { EventHandler, defaultHandler } from './EventManager';
+import { EventHandler, DefaultHandler, ErrorHandler } from './EventManager';
 import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, InputData, MiddlewareStatus, OutputContext, PromptComputer, SystemMessageComputer } from './@types/index';
 import { ChatCompletionRequestMessageRoleEnum } from 'openai';
 import { SessionStorage } from './session/SessionStorage';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
 import { Session } from './session/Session';
+export declare enum ChatCompletionCallInitiator {
+    main_flow = "MAIN_FLOW",
+    injection = "INJECTION",
+    call_again = "CALL_AGAIN"
+}
 export declare class LlmOrchestrator {
     private readonly cfg;
     private readonly sms;
@@ -30,10 +35,12 @@ export declare class LlmOrchestrator {
     syncSystemMessagesAndPrompts(): Promise<void>;
     useComputeSystemMessage(name: string, handler: SystemMessageComputer): void;
     useComputePrompt(name: string, handler: PromptComputer): void;
-    useDefaultHandler(eventHandler: defaultHandler): void;
+    useDefaultHandler(eventHandler: DefaultHandler): void;
+    useErrorHandler(eventHandler: ErrorHandler): void;
     useEventHandler(name: string, eventHandler: EventHandler): void;
     useLLMInput(name: string, middleware: AsyncLLMInputMiddleware): void;
     useLLMOutput(name: string, middleware: AsyncLLMOutputMiddleware): void;
+    private getChatCompletionInitiatorName;
     private chatCompletionCallProcessor;
     private chatCompletionBeginProcessor;
     private getTimastamp;

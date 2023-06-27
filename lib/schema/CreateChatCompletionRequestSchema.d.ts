@@ -41,8 +41,6 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             user?: string | undefined;
         }>;
     }, "strip", z.ZodTypeAny, {
-        name: string;
-        systemMessage: string;
         modelPreset: {
             model: string;
             temperature?: number | undefined;
@@ -56,9 +54,9 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             logit_bias?: Record<string, number> | undefined;
             user?: string | undefined;
         };
+        name: string;
+        systemMessage: string;
     }, {
-        name: string;
-        systemMessage: string;
         modelPreset: {
             model: string;
             temperature?: number | undefined;
@@ -72,11 +70,11 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             logit_bias?: Record<string, number> | undefined;
             user?: string | undefined;
         };
+        name: string;
+        systemMessage: string;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     systemMessages: {
-        name: string;
-        systemMessage: string;
         modelPreset: {
             model: string;
             temperature?: number | undefined;
@@ -90,11 +88,11 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             logit_bias?: Record<string, number> | undefined;
             user?: string | undefined;
         };
+        name: string;
+        systemMessage: string;
     }[];
 }, {
     systemMessages: {
-        name: string;
-        systemMessage: string;
         modelPreset: {
             model: string;
             temperature?: number | undefined;
@@ -108,6 +106,8 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             logit_bias?: Record<string, number> | undefined;
             user?: string | undefined;
         };
+        name: string;
+        systemMessage: string;
     }[];
 }>;
 export type CreateChatCompletionRequestType = z.infer<typeof createChatCompletionRequestSchema>;

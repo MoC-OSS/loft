@@ -14,6 +14,7 @@ export declare class Session implements SessionData {
         system: ChatCompletionResponseMessage | null;
         function: ChatCompletionResponseMessage | null;
     };
+    readonly handlersCount: Record<string, number>;
     ctx: Record<string, unknown>;
     readonly createdAt: Date;
     readonly updatedAt: Date;
