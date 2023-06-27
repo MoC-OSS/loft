@@ -194,4 +194,4 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
 12. [x] add last role message to session
 13. [x] add .update method to session.ctx.update()
 14. [x] add job time to config
-15. [ ] refactor HistoryStorage to Entity Based way Session class
+15. [x] refactor HistoryStorage to Entity Based way Session class

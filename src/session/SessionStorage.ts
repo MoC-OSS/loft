@@ -161,16 +161,16 @@ export class SessionStorage {
     systemMessageName: string,
     ctx: Record<string, unknown>,
   ) {
-    const sessionKey = this.getChatCompletionSessionKey(
-      sessionId,
-      systemMessageName,
-    );
-    const session = await this.getSession(sessionKey, systemMessageName);
+    const session = await this.getSession(sessionId, systemMessageName);
 
     if (deepEqual(session.ctx, ctx)) return session; //skip if ctx is the same
 
     session.ctx = ctx;
 
+    const sessionKey = this.getChatCompletionSessionKey(
+      sessionId,
+      systemMessageName,
+    );
     await this.client.set(
       sessionKey,
       JSON.stringify(session),
