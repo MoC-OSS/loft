@@ -17,6 +17,7 @@ export class Session implements SessionData {
     system: ChatCompletionResponseMessage | null;
     function: ChatCompletionResponseMessage | null;
   };
+  readonly handlersCount: Record<string, number>;
   public ctx: Record<string, unknown>;
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -29,6 +30,7 @@ export class Session implements SessionData {
     this.modelPreset = sessionData.modelPreset;
     this.messages = sessionData.messages;
     this.lastMessageByRole = sessionData.lastMessageByRole;
+    this.handlersCount = sessionData.handlersCount;
     this.ctx = sessionData.ctx;
     this.createdAt = sessionData.createdAt;
     this.updatedAt = sessionData.updatedAt;

@@ -1,5 +1,9 @@
-import { input } from 'zod';
-import { EventHandler, EventManager, defaultHandler } from './EventManager';
+import {
+  EventHandler,
+  EventManager,
+  DefaultHandler,
+  ErrorHandler,
+} from './EventManager';
 import {
   AsyncLLMInputMiddleware,
   AsyncLLMOutputMiddleware,
@@ -28,6 +32,12 @@ import { ChatCompletionInputSchema } from './schema/ChatCompletionSchema';
 import { sanitizeAndValidateRedisKey } from './helpers';
 import { Session } from './session/Session';
 
+export enum ChatCompletionCallInitiator {
+  main_flow = 'MAIN_FLOW',
+  injection = 'INJECTION',
+  call_again = 'CALL_AGAIN',
+}
+
 export class LlmOrchestrator {
   private readonly eventManager: EventManager;
   private readonly llmIOManager: LlmIOManager;
@@ -44,7 +54,7 @@ export class LlmOrchestrator {
     private readonly ps: PromptService,
     private readonly hs: SessionStorage,
   ) {
-    this.eventManager = new EventManager();
+    this.eventManager = new EventManager(this.hs);
     this.llmIOManager = new LlmIOManager();
     this.openai = new OpenAIApi(
       new Configuration({
@@ -137,7 +147,7 @@ export class LlmOrchestrator {
       );
       await this.completionQueue.add(jobKey, chatData, {
         removeOnComplete: true,
-        attempts: 3,
+        attempts: this.cfg.jobsAttentions,
       });
     } catch (error) {
       console.log(error);
@@ -206,9 +216,13 @@ export class LlmOrchestrator {
     const jobKey = sanitizeAndValidateRedisKey(
       `app:${
         this.cfg.appName
-      }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:prompt_injection:session:${sessionId}:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
+      }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:injection:session:${sessionId}:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
     );
-    await this.llmApiCallQueue.add(jobKey, { session: newSession });
+    await this.llmApiCallQueue.add(
+      jobKey,
+      { session: newSession },
+      { attempts: this.cfg.chatCompletionJobCallAttentions },
+    );
   }
 
   /* 
@@ -253,7 +267,11 @@ export class LlmOrchestrator {
           this.cfg.appName
         }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:call_again:session:${sessionId}:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
       );
-      await this.llmApiCallQueue.add(jobKey, { session: newSession });
+      await this.llmApiCallQueue.add(
+        jobKey,
+        { session: newSession },
+        { attempts: this.cfg.chatCompletionJobCallAttentions },
+      );
 
       return {
         status: MiddlewareStatus.CALL_AGAIN,
@@ -286,8 +304,12 @@ export class LlmOrchestrator {
     this.ps.use(name, handler);
   }
 
-  useDefaultHandler(eventHandler: defaultHandler) {
+  useDefaultHandler(eventHandler: DefaultHandler) {
     this.eventManager.useDefault(eventHandler);
+  }
+
+  useErrorHandler(eventHandler: ErrorHandler) {
+    this.eventManager.useError(eventHandler);
   }
 
   useEventHandler(name: string, eventHandler: EventHandler) {
@@ -302,8 +324,29 @@ export class LlmOrchestrator {
     this.llmIOManager.useOutput(name, middleware);
   }
 
+  private getChatCompletionInitiatorName(
+    redisKey: string,
+  ): ChatCompletionCallInitiator {
+    const segments = redisKey.split(':');
+    const intentIndex = segments.indexOf('intent');
+    let initiator = segments[intentIndex + 1];
+
+    if (!initiator) throw new Error('intent is undefined');
+
+    initiator =
+      ChatCompletionCallInitiator[
+        initiator as keyof typeof ChatCompletionCallInitiator
+      ];
+
+    if (!initiator) {
+      throw new Error('Invalid intent');
+    }
+
+    return initiator as ChatCompletionCallInitiator;
+  }
+
   private async chatCompletionCallProcessor(
-    job: Job | { data: { session: SessionData } },
+    job: Job | { name: string; data: { session: SessionData } },
   ) {
     try {
       let { session } = job.data;
@@ -326,6 +369,7 @@ export class LlmOrchestrator {
         await this.llmIOManager.executeOutputMiddlewareChain({
           session: job.data.session,
           llmResponse: chatCompletion.data,
+          initiator: this.getChatCompletionInitiatorName(job.name),
         });
 
       /* Cancel job and history update because in middleware was called callAgain()
@@ -344,9 +388,12 @@ export class LlmOrchestrator {
       await this.hs.updateMessages(sessionId, systemMessageName, outputMessage);
       session = await this.hs.getSession(sessionId, systemMessageName);
 
+      let initiator = this.getChatCompletionInitiatorName(job.name);
+
       await this.eventManager.executeEventHandlers({
         ...outputContext,
         session,
+        initiator,
       });
     } catch (error) {
       console.log(error);
@@ -394,7 +441,7 @@ export class LlmOrchestrator {
       const jobKey = sanitizeAndValidateRedisKey(
         `app:${
           this.cfg.appName
-        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:continue_chat_processing:session:${
+        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:main_flow:session:${
           chatSession.sessionId
         }:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
       );
@@ -403,7 +450,10 @@ export class LlmOrchestrator {
         {
           session: chatSession,
         },
-        { removeOnComplete: true, attempts: 3 },
+        {
+          removeOnComplete: true,
+          attempts: this.cfg.chatCompletionJobCallAttentions,
+        },
       );
     } catch (error) {
       console.log(error);

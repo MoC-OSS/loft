@@ -56,6 +56,7 @@ export class SessionStorage {
         system: message,
         function: null,
       },
+      handlersCount: {},
       ctx: {},
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -154,6 +155,28 @@ export class SessionStorage {
       console.log(error);
       throw error;
     }
+  }
+
+  async incrementHandlerCount(
+    sessionId: string,
+    systemMessageName: string,
+    handlerName: string,
+  ) {
+    const session = await this.getSession(sessionId, systemMessageName);
+    if (!session.handlersCount[handlerName]) {
+      session.handlersCount[handlerName] = 0;
+    }
+    session.handlersCount[handlerName] += 1;
+    const sessionKey = this.getChatCompletionSessionKey(
+      sessionId,
+      systemMessageName,
+    );
+    await this.client.set(
+      sessionKey,
+      JSON.stringify(session),
+      'EX',
+      this.sessionTtl,
+    );
   }
 
   async saveCtx(

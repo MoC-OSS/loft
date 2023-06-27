@@ -186,7 +186,7 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
 4. [x] write docs
 5. [x] create example project
 6. [ ] connect Langchain history
-7. [ ] separate chats by combined sessionId, systemMessageId, and userId
+7. [x] separate chats by combined sessionId, systemMessageId
 8. [x] add user context to middlewares, handlers, etc...
 9. [x] add method to create injections using systemMessageName
 10. [x] add method for clear session
@@ -195,3 +195,7 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
 13. [x] add .update method to session.ctx.update()
 14. [x] add job time to config
 15. [x] refactor HistoryStorage to Entity Based way Session class
+16. [x] provide retries control to bullmq
+18. [x] detect source of handled caller and return this sourceName to handler and middlewares
+19. [x] counter for each registered handler and return this counter to handler
+20. [x] create overloop prevention and provide control when registered handler

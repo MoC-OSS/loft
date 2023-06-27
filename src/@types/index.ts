@@ -6,6 +6,7 @@ import {
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { PromptType } from '../schema/PromptSchema';
 import { Session } from '../session/Session';
+import { ChatCompletionCallInitiator } from '../LlmOrchestrator';
 
 export interface SessionData {
   sessionId: string;
@@ -18,6 +19,7 @@ export interface SessionData {
     system: ChatCompletionResponseMessage | null;
     function: ChatCompletionResponseMessage | null;
   };
+  handlersCount: Record<string, number>;
   ctx: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -34,6 +36,7 @@ export interface InputContext {
 }
 
 export interface OutputContext {
+  initiator: ChatCompletionCallInitiator;
   session: Session;
   llmResponse?: CreateChatCompletionResponse;
 }
@@ -68,6 +71,8 @@ export interface Config {
     concurrency: number;
   };
   jobsLockDuration: number; // in milliseconds
+  jobsAttentions: number;
+  chatCompletionJobCallAttentions: number;
 }
 
 export enum MiddlewareStatus {
