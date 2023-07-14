@@ -1,6 +1,6 @@
 import { Redis, Cluster } from 'ioredis';
 import { ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum, ChatCompletionResponseMessage } from 'openai';
-import { SessionData } from '../@types';
+import { ChatCompletionMessage, SessionData } from '../@types';
 export declare class SessionStorage {
     private readonly client;
     private readonly sessionTtl;
@@ -8,8 +8,8 @@ export declare class SessionStorage {
     constructor(client: Redis | Cluster, sessionTtl: number, appName: string);
     private getChatCompletionSessionKey;
     isExists(sessionId: string, systemMessageName: string): Promise<boolean>;
-    createSession(sessionId: string, systemMessageName: string, modelPreset: SessionData['modelPreset'], message: ChatCompletionRequestMessage): Promise<void>;
-    updateMessages(sessionId: string, systemMessageName: string, newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage): Promise<void>;
+    createSession(sessionId: string, systemMessageName: string, modelPreset: SessionData['modelPreset'], message: ChatCompletionMessage): Promise<void>;
+    updateMessages(sessionId: string, systemMessageName: string, newMessage: ChatCompletionMessage): Promise<void>;
     replaceLastUserMessage(sessionId: string, systemMessageName: string, newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage, role?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
     deleteSession(sessionId: string, systemMessageName: string): Promise<void>;
     deleteSessionsById(sessionId: string): Promise<void>;

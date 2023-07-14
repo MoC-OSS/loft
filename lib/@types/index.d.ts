@@ -2,12 +2,13 @@ import { ChatCompletionRequestMessage, ChatCompletionResponseMessage, CreateChat
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { PromptType } from '../schema/PromptSchema';
 import { Session } from '../session/Session';
-import { ChatCompletionCallInitiator } from '../LlmOrchestrator';
+import { ChatCompletionCallInitiator } from '../ChatCompletion';
+export type ChatCompletionMessage = ChatCompletionRequestMessage & ChatCompletionResponseMessage;
 export interface SessionData {
     sessionId: string;
     systemMessageName: string;
     modelPreset: SystemMessageType['modelPreset'];
-    messages: ChatCompletionRequestMessage[];
+    messages: ChatCompletionMessage[];
     lastMessageByRole: {
         user: ChatCompletionRequestMessage | null;
         assistant: ChatCompletionResponseMessage | null;

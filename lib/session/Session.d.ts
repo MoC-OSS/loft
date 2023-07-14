@@ -1,4 +1,4 @@
-import { SessionData } from './../@types';
+import { ChatCompletionMessage, SessionData } from './../@types';
 import { SessionStorage } from './SessionStorage';
 import { ChatCompletionRequestMessage, ChatCompletionResponseMessage } from 'openai';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
@@ -7,7 +7,7 @@ export declare class Session implements SessionData {
     readonly sessionId: string;
     readonly systemMessageName: string;
     readonly modelPreset: SystemMessageType['modelPreset'];
-    readonly messages: ChatCompletionRequestMessage[];
+    readonly messages: ChatCompletionMessage[];
     readonly lastMessageByRole: {
         user: ChatCompletionRequestMessage | null;
         assistant: ChatCompletionResponseMessage | null;
@@ -21,5 +21,6 @@ export declare class Session implements SessionData {
     constructor(sessionStorage: SessionStorage, sessionData: SessionData);
     saveCtx(): Promise<void>;
     delete(): Promise<void>;
+    toJSON(): SessionData;
 }
 //# sourceMappingURL=Session.d.ts.map

@@ -1,10 +1,43 @@
 import { z } from 'zod';
+export declare const ChatCompletionFunctions: z.ZodOptional<z.ZodObject<{
+    name: z.ZodString;
+    description: z.ZodOptional<z.ZodString>;
+    parameters: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    description?: string | undefined;
+    parameters?: Record<string, any> | undefined;
+}, {
+    name: string;
+    description?: string | undefined;
+    parameters?: Record<string, any> | undefined;
+}>>;
 export declare const createChatCompletionRequestSchema: z.ZodObject<{
     systemMessages: z.ZodArray<z.ZodObject<{
         name: z.ZodEffects<z.ZodString, string, string>;
         systemMessage: z.ZodString;
         modelPreset: z.ZodObject<{
             model: z.ZodString;
+            functions: z.ZodOptional<z.ZodArray<z.ZodOptional<z.ZodObject<{
+                name: z.ZodString;
+                description: z.ZodOptional<z.ZodString>;
+                parameters: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
+            }, "strip", z.ZodTypeAny, {
+                name: string;
+                description?: string | undefined;
+                parameters?: Record<string, any> | undefined;
+            }, {
+                name: string;
+                description?: string | undefined;
+                parameters?: Record<string, any> | undefined;
+            }>>, "many">>;
+            function_call: z.ZodUnion<[z.ZodObject<{
+                name: z.ZodString;
+            }, "strip", z.ZodTypeAny, {
+                name: string;
+            }, {
+                name: string;
+            }>, z.ZodString]>;
             temperature: z.ZodOptional<z.ZodNumber>;
             top_p: z.ZodOptional<z.ZodNumber>;
             n: z.ZodOptional<z.ZodNumber>;
@@ -14,9 +47,18 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             presence_penalty: z.ZodOptional<z.ZodNumber>;
             frequency_penalty: z.ZodOptional<z.ZodNumber>;
             logit_bias: z.ZodOptional<z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodNumber>, Record<string, number>, Record<string, number>>>;
-            user: z.ZodOptional<z.ZodString>;
         }, "strip", z.ZodTypeAny, {
             model: string;
+            function_call: (string | {
+                name: string;
+            }) & (string | {
+                name: string;
+            } | undefined);
+            functions?: ({
+                name: string;
+                description?: string | undefined;
+                parameters?: Record<string, any> | undefined;
+            } | undefined)[] | undefined;
             temperature?: number | undefined;
             top_p?: number | undefined;
             n?: number | undefined;
@@ -26,9 +68,18 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             presence_penalty?: number | undefined;
             frequency_penalty?: number | undefined;
             logit_bias?: Record<string, number> | undefined;
-            user?: string | undefined;
         }, {
             model: string;
+            function_call: (string | {
+                name: string;
+            }) & (string | {
+                name: string;
+            } | undefined);
+            functions?: ({
+                name: string;
+                description?: string | undefined;
+                parameters?: Record<string, any> | undefined;
+            } | undefined)[] | undefined;
             temperature?: number | undefined;
             top_p?: number | undefined;
             n?: number | undefined;
@@ -38,11 +89,22 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             presence_penalty?: number | undefined;
             frequency_penalty?: number | undefined;
             logit_bias?: Record<string, number> | undefined;
-            user?: string | undefined;
         }>;
     }, "strip", z.ZodTypeAny, {
+        name: string;
+        systemMessage: string;
         modelPreset: {
             model: string;
+            function_call: (string | {
+                name: string;
+            }) & (string | {
+                name: string;
+            } | undefined);
+            functions?: ({
+                name: string;
+                description?: string | undefined;
+                parameters?: Record<string, any> | undefined;
+            } | undefined)[] | undefined;
             temperature?: number | undefined;
             top_p?: number | undefined;
             n?: number | undefined;
@@ -52,13 +114,22 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             presence_penalty?: number | undefined;
             frequency_penalty?: number | undefined;
             logit_bias?: Record<string, number> | undefined;
-            user?: string | undefined;
         };
-        name: string;
-        systemMessage: string;
     }, {
+        name: string;
+        systemMessage: string;
         modelPreset: {
             model: string;
+            function_call: (string | {
+                name: string;
+            }) & (string | {
+                name: string;
+            } | undefined);
+            functions?: ({
+                name: string;
+                description?: string | undefined;
+                parameters?: Record<string, any> | undefined;
+            } | undefined)[] | undefined;
             temperature?: number | undefined;
             top_p?: number | undefined;
             n?: number | undefined;
@@ -68,15 +139,24 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             presence_penalty?: number | undefined;
             frequency_penalty?: number | undefined;
             logit_bias?: Record<string, number> | undefined;
-            user?: string | undefined;
         };
-        name: string;
-        systemMessage: string;
     }>, "many">;
-}, "strip", z.ZodTypeAny, {
+}, "strict", z.ZodTypeAny, {
     systemMessages: {
+        name: string;
+        systemMessage: string;
         modelPreset: {
             model: string;
+            function_call: (string | {
+                name: string;
+            }) & (string | {
+                name: string;
+            } | undefined);
+            functions?: ({
+                name: string;
+                description?: string | undefined;
+                parameters?: Record<string, any> | undefined;
+            } | undefined)[] | undefined;
             temperature?: number | undefined;
             top_p?: number | undefined;
             n?: number | undefined;
@@ -86,15 +166,24 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             presence_penalty?: number | undefined;
             frequency_penalty?: number | undefined;
             logit_bias?: Record<string, number> | undefined;
-            user?: string | undefined;
         };
-        name: string;
-        systemMessage: string;
     }[];
 }, {
     systemMessages: {
+        name: string;
+        systemMessage: string;
         modelPreset: {
             model: string;
+            function_call: (string | {
+                name: string;
+            }) & (string | {
+                name: string;
+            } | undefined);
+            functions?: ({
+                name: string;
+                description?: string | undefined;
+                parameters?: Record<string, any> | undefined;
+            } | undefined)[] | undefined;
             temperature?: number | undefined;
             top_p?: number | undefined;
             n?: number | undefined;
@@ -104,10 +193,7 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             presence_penalty?: number | undefined;
             frequency_penalty?: number | undefined;
             logit_bias?: Record<string, number> | undefined;
-            user?: string | undefined;
         };
-        name: string;
-        systemMessage: string;
     }[];
 }>;
 export type CreateChatCompletionRequestType = z.infer<typeof createChatCompletionRequestSchema>;
