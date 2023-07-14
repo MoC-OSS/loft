@@ -1,4 +1,4 @@
-import { SessionData } from './../@types';
+import { ChatCompletionMessage, SessionData } from './../@types';
 import { SessionStorage } from './SessionStorage';
 import {
   ChatCompletionRequestMessage,
@@ -10,7 +10,7 @@ export class Session implements SessionData {
   readonly sessionId: string;
   readonly systemMessageName: string;
   readonly modelPreset: SystemMessageType['modelPreset'];
-  readonly messages: ChatCompletionRequestMessage[];
+  readonly messages: ChatCompletionMessage[];
   readonly lastMessageByRole: {
     user: ChatCompletionRequestMessage | null;
     assistant: ChatCompletionResponseMessage | null;
@@ -46,5 +46,19 @@ export class Session implements SessionData {
 
   public async delete(): Promise<void> {
     this.sessionStorage.deleteSession(this.sessionId, this.systemMessageName);
+  }
+
+  public toJSON(): SessionData {
+    return {
+      sessionId: this.sessionId,
+      systemMessageName: this.systemMessageName,
+      modelPreset: this.modelPreset,
+      messages: this.messages,
+      lastMessageByRole: this.lastMessageByRole,
+      handlersCount: this.handlersCount,
+      ctx: this.ctx,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
   }
 }

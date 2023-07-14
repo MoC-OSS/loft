@@ -5,7 +5,7 @@ import {
   ChatCompletionResponseMessage,
   ChatCompletionResponseMessageRoleEnum,
 } from 'openai';
-import { SessionData } from '../@types';
+import { ChatCompletionMessage, SessionData } from '../@types';
 import { deepEqual } from '../helpers';
 import { Session } from './Session';
 
@@ -39,7 +39,7 @@ export class SessionStorage {
     sessionId: string,
     systemMessageName: string,
     modelPreset: SessionData['modelPreset'],
-    message: ChatCompletionRequestMessage,
+    message: ChatCompletionMessage,
   ): Promise<void> {
     const sessionKey = this.getChatCompletionSessionKey(
       sessionId,
@@ -73,7 +73,7 @@ export class SessionStorage {
   async updateMessages(
     sessionId: string,
     systemMessageName: string,
-    newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage,
+    newMessage: ChatCompletionMessage,
   ): Promise<void> {
     try {
       const sessionKey = this.getChatCompletionSessionKey(

@@ -1,4 +1,4 @@
-export { LlmOrchestrator } from './LlmOrchestrator';
+export { ChatCompletion } from './ChatCompletion';
 export { EventHandler } from './EventManager';
 export { SystemMessageService } from './systemMessage/SystemMessageService';
 export { SystemMessageStorage } from './systemMessage/SystemMessageStorage';
