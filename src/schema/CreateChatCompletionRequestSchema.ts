@@ -1,13 +1,11 @@
 import { z } from 'zod';
 import { redisKeyRegex } from '../helpers';
 
-export const ChatCompletionFunctions = z
-  .object({
-    name: z.string(),
-    description: z.string().optional(),
-    parameters: z.record(z.any()).optional(),
-  })
-  .optional();
+export const ChatCompletionFunctions = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+  parameters: z.record(z.any()).optional(),
+});
 
 const CreateChatCompletionRequestFunctionCallOneOf = z.object({
   name: z.string(),

@@ -1,3 +1,4 @@
+import { Message } from './session/Message';
 export { ChatCompletion } from './ChatCompletion';
 export { EventHandler } from './EventManager';
 export { SystemMessageService } from './systemMessage/SystemMessageService';
@@ -17,6 +18,8 @@ export {
   InputData,
   SessionData,
 } from './@types/index';
+export { Message } from './session/Message';
+export { ChatHistory } from './session/ChatHistory';
 
 import { MiddlewareStatus as MdStatus } from './@types/index';
 export const MiddlewareStatuses = { ...MdStatus } as Record<MdStatus, MdStatus>;

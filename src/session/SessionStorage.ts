@@ -6,8 +6,10 @@ import {
   ChatCompletionResponseMessageRoleEnum,
 } from 'openai';
 import { ChatCompletionMessage, SessionData } from '../@types';
-import { deepEqual } from '../helpers';
+import { deepEqual, getTimestamp } from '../helpers';
 import { Session } from './Session';
+import { ChatHistory } from './ChatHistory';
+import { Message } from './Message';
 
 export class SessionStorage {
   constructor(
@@ -39,17 +41,18 @@ export class SessionStorage {
     sessionId: string,
     systemMessageName: string,
     modelPreset: SessionData['modelPreset'],
-    message: ChatCompletionMessage,
+    message: Message,
   ): Promise<void> {
     const sessionKey = this.getChatCompletionSessionKey(
       sessionId,
       systemMessageName,
     );
-    const sessionData: SessionData = {
+    const timestamp = getTimestamp();
+    const session = new Session(this, {
       sessionId,
       systemMessageName,
       modelPreset,
-      messages: [message],
+      messages: new ChatHistory(this, message),
       lastMessageByRole: {
         user: null,
         assistant: null,
@@ -58,45 +61,77 @@ export class SessionStorage {
       },
       handlersCount: {},
       ctx: {},
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
 
     await this.client.set(
       sessionKey,
-      JSON.stringify(sessionData),
+      JSON.stringify(session),
       'EX',
       this.sessionTtl,
     );
   }
 
-  async updateMessages(
+  async updateAllMessages(
     sessionId: string,
     systemMessageName: string,
-    newMessage: ChatCompletionMessage,
-  ): Promise<void> {
+    messages: Message[] | ChatHistory,
+  ): Promise<ChatHistory> {
     try {
+      let session = await this.getSession(sessionId, systemMessageName);
+
+      session.messages.length = 0; // clear messages array
+      messages.forEach((message) => {
+        session.messages.push(message);
+        session.lastMessageByRole[message.role] = message;
+      });
+      session.updatedAt = getTimestamp();
+
       const sessionKey = this.getChatCompletionSessionKey(
         sessionId,
         systemMessageName,
       );
 
-      const sessionData = await this.getSession(sessionId, systemMessageName);
-      sessionData.messages.push(newMessage);
-      sessionData.updatedAt = new Date();
+      await this.client.set(
+        sessionKey,
+        JSON.stringify(session),
+        'EX',
+        this.sessionTtl,
+      );
 
-      if (newMessage.role === ChatCompletionResponseMessageRoleEnum.User)
-        sessionData.lastMessageByRole.user = newMessage;
-      if (newMessage.role === ChatCompletionResponseMessageRoleEnum.Assistant)
-        sessionData.lastMessageByRole.assistant = newMessage;
-      if (newMessage.role === ChatCompletionResponseMessageRoleEnum.System)
-        sessionData.lastMessageByRole.system = newMessage;
-      if (newMessage.role === ChatCompletionResponseMessageRoleEnum.Function)
-        sessionData.lastMessageByRole.function = newMessage;
+      session = await this.getSession(sessionId, systemMessageName);
+
+      return session.messages;
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
+  }
+
+  async appendMessages(
+    sessionId: string,
+    systemMessageName: string,
+    newMessages: Message[],
+  ): Promise<void> {
+    try {
+      const session = await this.getSession(sessionId, systemMessageName);
+
+      newMessages.forEach((newMessage) => {
+        session.messages.push(newMessage);
+
+        session.lastMessageByRole[newMessage.role] = newMessage;
+      });
+      session.updatedAt = getTimestamp();
+
+      const sessionKey = this.getChatCompletionSessionKey(
+        sessionId,
+        systemMessageName,
+      );
 
       await this.client.set(
         sessionKey,
-        JSON.stringify(sessionData),
+        JSON.stringify(session),
         'EX',
         this.sessionTtl,
       );
@@ -114,7 +149,7 @@ export class SessionStorage {
   ) {
     const session = await this.getSession(sessionId, systemMessageName);
     if (session.messages[session.messages.length - 1].role === role) {
-      session.updatedAt = new Date();
+      session.updatedAt = getTimestamp();
       session.messages[session.messages.length - 1].content =
         newMessage.content;
       const sessionKey = this.getChatCompletionSessionKey(
@@ -207,7 +242,7 @@ export class SessionStorage {
   async getSession(
     sessionId: string,
     systemMessageName: string,
-  ): Promise<SessionData> {
+  ): Promise<Session> {
     const sessionKey = this.getChatCompletionSessionKey(
       sessionId,
       systemMessageName,

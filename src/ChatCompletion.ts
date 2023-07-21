@@ -30,9 +30,10 @@ import { LlmIOManager } from './LlmIoManager';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
 import { ChatCompletionInputSchema } from './schema/ChatCompletionSchema';
-import { sanitizeAndValidateRedisKey } from './helpers';
+import { getTimestamp, sanitizeAndValidateRedisKey } from './helpers';
 import { Session } from './session/Session';
 import { FunctionManager, OpenAiFunction } from './FunctionManager';
+import { Message } from './session/Message';
 
 export enum ChatCompletionCallInitiator {
   main_flow = 'MAIN_FLOW',
@@ -146,9 +147,7 @@ export class ChatCompletion {
           this.cfg.appName
         }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_begin_processor:intent:processing_new_or_existing_session:session:${
           chatData.sessionId
-        }:system_message:${
-          chatData.systemMessageName
-        }:time:${this.getTimastamp()}`,
+        }:system_message:${chatData.systemMessageName}:time:${getTimestamp()}`,
       );
       await this.completionQueue.add(jobKey, chatData, {
         removeOnComplete: true,
@@ -174,20 +173,20 @@ export class ChatCompletion {
     const prevSession = await this.hs.getSession(sessionId, systemMessageName);
 
     const promptData = await this.ps.computePrompt(promptName, prevSession);
-    const userPrompt: ChatCompletionMessage = {
+    const userPrompt = new Message({
       role: promptRole,
       content: promptData.prompt,
-    };
+    });
 
     const processedInputContext =
       await this.llmIOManager.executeInputMiddlewareChain({
         sessionId,
         message,
       });
-    const newMessage: ChatCompletionMessage = {
+    const newMessage = new Message({
       role: messageRole,
       content: processedInputContext.message,
-    };
+    });
 
     const lastPrompt = prevSession.messages[prevSession.messages.length - 2];
     const lastUserMessage =
@@ -214,14 +213,14 @@ export class ChatCompletion {
       throw error;
     }
 
-    await this.hs.updateMessages(sessionId, systemMessageName, userPrompt);
-    await this.hs.updateMessages(sessionId, systemMessageName, newMessage);
+    await this.hs.appendMessages(sessionId, systemMessageName, [userPrompt]);
+    await this.hs.appendMessages(sessionId, systemMessageName, [newMessage]);
     const newSession = await this.hs.getSession(sessionId, systemMessageName);
 
     const jobKey = sanitizeAndValidateRedisKey(
       `app:${
         this.cfg.appName
-      }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:injection:session:${sessionId}:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
+      }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:injection:session:${sessionId}:system_message:${systemMessageName}:time:${getTimestamp()}`,
     );
     await this.llmApiCallQueue.add(
       jobKey,
@@ -270,7 +269,7 @@ export class ChatCompletion {
       const jobKey = sanitizeAndValidateRedisKey(
         `app:${
           this.cfg.appName
-        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:call_again:session:${sessionId}:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
+        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:call_again:session:${sessionId}:system_message:${systemMessageName}:time:${getTimestamp()}`,
       );
       await this.llmApiCallQueue.add(
         jobKey,
@@ -356,19 +355,19 @@ export class ChatCompletion {
         ctx,
       );
 
-      const fnMessage: ChatCompletionMessage = {
+      const fnMessage = new Message({
         role: ChatCompletionRequestMessageRoleEnum.Function,
         content: fnResult,
         name: fnName,
-      };
+      });
 
-      await this.hs.updateMessages(sessionId, systemMessageName, fnMessage);
+      await this.hs.appendMessages(sessionId, systemMessageName, [fnMessage]);
       const newSession = await this.hs.getSession(sessionId, systemMessageName);
 
       const jobKey = sanitizeAndValidateRedisKey(
         `app:${
           this.cfg.appName
-        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:set_function_result:session:${sessionId}:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
+        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:set_function_result:session:${sessionId}:system_message:${systemMessageName}:time:${getTimestamp()}`,
       );
 
       await this.llmApiCallQueue.add(
@@ -413,14 +412,14 @@ export class ChatCompletion {
     job: Job | { name: string; data: { session: SessionData } },
   ) {
     try {
-      let { session } = job.data;
+      let session = new Session(this.hs, job.data.session);
       const { sessionId, systemMessageName, messages, modelPreset } = session;
 
       let initiator = this.getChatCompletionInitiatorName(job.name);
 
       const chatCompletion = await this.openai.createChatCompletion({
-        ...modelPreset,
-        messages,
+        ...session.modelPreset,
+        messages: session.messages.formatToOpenAi(),
       });
 
       const ccm = chatCompletion.data.choices[0].message; // ccm = chat completion message (response)
@@ -448,11 +447,14 @@ export class ChatCompletion {
       if (modelPreset.function_call === 'auto')
         if (await this.callFunction(chatCompletion.data, outputContext)) return;
 
-      const outputMessage = outputContext.llmResponse?.choices[0]
-        .message as ChatCompletionMessage;
-      if (!outputMessage)
+      const llmResponse = outputContext.llmResponse?.choices[0].message;
+      if (!llmResponse)
         throw new Error('LLM API response after OutputMiddlewares is empty!');
-      await this.hs.updateMessages(sessionId, systemMessageName, outputMessage);
+
+      const responseMessage = new Message({ ...llmResponse });
+      await this.hs.appendMessages(sessionId, systemMessageName, [
+        responseMessage,
+      ]);
       session = await this.hs.getSession(sessionId, systemMessageName);
 
       await this.eventManager.executeEventHandlers({
@@ -474,28 +476,33 @@ export class ChatCompletion {
           job.data as InputContext,
         );
 
-      const newMessage: ChatCompletionMessage = {
+      const newMessage = new Message({
         role: 'user',
         content: processedMessage,
-      };
+      });
 
       if (await this.hs.isExists(sessionId, systemMessageName)) {
-        await this.hs.updateMessages(sessionId, systemMessageName, newMessage);
+        await this.hs.appendMessages(sessionId, systemMessageName, [
+          newMessage,
+        ]);
       } else {
         const { systemMessage: computedSystemMessage, modelPreset } =
           await this.sms.computeSystemMessage(systemMessageName, job.data);
 
-        const systemMessage: ChatCompletionMessage = {
+        const systemMessage = new Message({
           role: 'system',
           content: computedSystemMessage,
-        };
+        });
+
         await this.hs.createSession(
           sessionId,
           systemMessageName,
           modelPreset,
           systemMessage,
         );
-        await this.hs.updateMessages(sessionId, systemMessageName, newMessage);
+        await this.hs.appendMessages(sessionId, systemMessageName, [
+          newMessage,
+        ]);
       }
 
       const chatSession = await this.hs.getSession(
@@ -508,7 +515,7 @@ export class ChatCompletion {
           this.cfg.appName
         }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:main_flow:session:${
           chatSession.sessionId
-        }:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
+        }:system_message:${systemMessageName}:time:${getTimestamp()}`,
       );
       await this.llmApiCallQueue.add(
         jobKey,
@@ -524,9 +531,5 @@ export class ChatCompletion {
       console.log(error);
       throw error;
     }
-  }
-
-  private getTimastamp() {
-    return Math.floor(Date.now() / 1000); // unix timestamp in seconds
   }
 }

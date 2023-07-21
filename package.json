@@ -13,6 +13,7 @@
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^20.4.2",
+    "@types/uuid": "^9.0.2",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.44.0",
@@ -25,9 +26,12 @@
   ],
   "dependencies": {
     "@aws-sdk/client-s3": "^3.370.0",
+    "@types/luxon": "^3.3.0",
     "axios": "^1.4.0",
     "bullmq": "^4.3.0",
+    "luxon": "^3.3.0",
     "openai": "^3.3.0",
+    "uuid": "^9.0.0",
     "zod": "^3.21.4"
   }
 }

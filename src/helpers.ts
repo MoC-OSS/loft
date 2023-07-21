@@ -1,4 +1,9 @@
+import { DateTime } from 'luxon';
 export const redisKeyRegex = /^[a-zA-Z0-9:_\.-]*$/;
+
+export function getTimestamp() {
+  return DateTime.local().toUTC().toSeconds();
+}
 
 type SanitizeRedisKey = string;
 export function sanitizeAndValidateRedisKey(key: string): SanitizeRedisKey {
@@ -48,6 +53,10 @@ export function deepEqual(
   return true;
 }
 
-async function sleep(ms: number): Promise<void> {
+export async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function isNotUndefined<T>(value: T | undefined): value is T {
+  return value !== undefined;
 }
