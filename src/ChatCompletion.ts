@@ -7,6 +7,7 @@ import {
 import {
   AsyncLLMInputMiddleware,
   AsyncLLMOutputMiddleware,
+  ChatCompletionMessage,
   Config,
   InputContext,
   InputData,
@@ -20,8 +21,8 @@ import { Job, Queue, Worker } from 'bullmq';
 import {
   ChatCompletionRequestMessage,
   ChatCompletionRequestMessageRoleEnum,
-  ChatCompletionResponseMessage,
   Configuration,
+  CreateChatCompletionResponse,
   OpenAIApi,
 } from 'openai';
 import { SessionStorage } from './session/SessionStorage';
@@ -29,18 +30,22 @@ import { LlmIOManager } from './LlmIoManager';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
 import { ChatCompletionInputSchema } from './schema/ChatCompletionSchema';
-import { sanitizeAndValidateRedisKey } from './helpers';
+import { getTimestamp, sanitizeAndValidateRedisKey } from './helpers';
 import { Session } from './session/Session';
+import { FunctionManager, OpenAiFunction } from './FunctionManager';
+import { Message } from './session/Message';
 
 export enum ChatCompletionCallInitiator {
   main_flow = 'MAIN_FLOW',
   injection = 'INJECTION',
   call_again = 'CALL_AGAIN',
+  set_function_result = 'SET_FUNCTION_RESULT',
 }
 
-export class LlmOrchestrator {
+export class ChatCompletion {
   private readonly eventManager: EventManager;
   private readonly llmIOManager: LlmIOManager;
+  private readonly fnManager: FunctionManager;
   private readonly openai: OpenAIApi;
 
   private readonly completionQueue!: Queue;
@@ -56,6 +61,7 @@ export class LlmOrchestrator {
   ) {
     this.eventManager = new EventManager(this.hs);
     this.llmIOManager = new LlmIOManager();
+    this.fnManager = new FunctionManager();
     this.openai = new OpenAIApi(
       new Configuration({
         apiKey: cfg.openAiKey,
@@ -121,8 +127,8 @@ export class LlmOrchestrator {
     sms: SystemMessageService,
     ps: PromptService,
     hs: SessionStorage,
-  ): Promise<LlmOrchestrator> {
-    const instance = new LlmOrchestrator(cfg, sms, ps, hs);
+  ): Promise<ChatCompletion> {
+    const instance = new ChatCompletion(cfg, sms, ps, hs);
     await instance.initialize();
     return instance;
   }
@@ -141,9 +147,7 @@ export class LlmOrchestrator {
           this.cfg.appName
         }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_begin_processor:intent:processing_new_or_existing_session:session:${
           chatData.sessionId
-        }:system_message:${
-          chatData.systemMessageName
-        }:time:${this.getTimastamp()}`,
+        }:system_message:${chatData.systemMessageName}:time:${getTimestamp()}`,
       );
       await this.completionQueue.add(jobKey, chatData, {
         removeOnComplete: true,
@@ -169,20 +173,20 @@ export class LlmOrchestrator {
     const prevSession = await this.hs.getSession(sessionId, systemMessageName);
 
     const promptData = await this.ps.computePrompt(promptName, prevSession);
-    const userPrompt: ChatCompletionRequestMessage = {
+    const userPrompt = new Message({
       role: promptRole,
       content: promptData.prompt,
-    };
+    });
 
     const processedInputContext =
       await this.llmIOManager.executeInputMiddlewareChain({
         sessionId,
         message,
       });
-    const newMessage: ChatCompletionRequestMessage = {
+    const newMessage = new Message({
       role: messageRole,
       content: processedInputContext.message,
-    };
+    });
 
     const lastPrompt = prevSession.messages[prevSession.messages.length - 2];
     const lastUserMessage =
@@ -209,14 +213,14 @@ export class LlmOrchestrator {
       throw error;
     }
 
-    await this.hs.updateMessages(sessionId, systemMessageName, userPrompt);
-    await this.hs.updateMessages(sessionId, systemMessageName, newMessage);
+    await this.hs.appendMessages(sessionId, systemMessageName, [userPrompt]);
+    await this.hs.appendMessages(sessionId, systemMessageName, [newMessage]);
     const newSession = await this.hs.getSession(sessionId, systemMessageName);
 
     const jobKey = sanitizeAndValidateRedisKey(
       `app:${
         this.cfg.appName
-      }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:injection:session:${sessionId}:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
+      }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:injection:session:${sessionId}:system_message:${systemMessageName}:time:${getTimestamp()}`,
     );
     await this.llmApiCallQueue.add(
       jobKey,
@@ -265,7 +269,7 @@ export class LlmOrchestrator {
       const jobKey = sanitizeAndValidateRedisKey(
         `app:${
           this.cfg.appName
-        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:call_again:session:${sessionId}:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
+        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:call_again:session:${sessionId}:system_message:${systemMessageName}:time:${getTimestamp()}`,
       );
       await this.llmApiCallQueue.add(
         jobKey,
@@ -324,6 +328,65 @@ export class LlmOrchestrator {
     this.llmIOManager.useOutput(name, middleware);
   }
 
+  useFunction(name: string, fn: OpenAiFunction) {
+    this.fnManager.use(name, fn);
+  }
+
+  private async callFunction(
+    chatCompletionResult: CreateChatCompletionResponse,
+    ctx: OutputContext,
+  ) {
+    const { sessionId, systemMessageName, modelPreset } = ctx.session;
+
+    const fnName =
+      chatCompletionResult.choices[0]?.message?.function_call?.name;
+    const fnArgs =
+      chatCompletionResult.choices[0]?.message?.function_call?.arguments;
+    if (
+      fnName &&
+      fnArgs &&
+      modelPreset.function_call === 'auto' &&
+      (modelPreset.model === 'gpt-3.5-turbo-0613' ||
+        modelPreset.model === 'gpt-4-0613')
+    ) {
+      const fnResult = await this.fnManager.executeFunction(
+        fnName,
+        fnArgs,
+        ctx,
+      );
+
+      const fnMessage = new Message({
+        role: ChatCompletionRequestMessageRoleEnum.Function,
+        content: fnResult,
+        name: fnName,
+      });
+
+      await this.hs.appendMessages(sessionId, systemMessageName, [fnMessage]);
+      const newSession = await this.hs.getSession(sessionId, systemMessageName);
+
+      const jobKey = sanitizeAndValidateRedisKey(
+        `app:${
+          this.cfg.appName
+        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:set_function_result:session:${sessionId}:system_message:${systemMessageName}:time:${getTimestamp()}`,
+      );
+
+      await this.llmApiCallQueue.add(
+        jobKey,
+        {
+          session: newSession,
+        },
+        {
+          removeOnComplete: true,
+          attempts: this.cfg.chatCompletionJobCallAttentions,
+        },
+      );
+
+      return true;
+    }
+
+    return false;
+  }
+
   private getChatCompletionInitiatorName(
     redisKey: string,
   ): ChatCompletionCallInitiator {
@@ -349,27 +412,24 @@ export class LlmOrchestrator {
     job: Job | { name: string; data: { session: SessionData } },
   ) {
     try {
-      let { session } = job.data;
-      const {
-        sessionId,
-        systemMessageName,
-        messages,
-        modelPreset: { model },
-      } = session;
+      let session = new Session(this.hs, job.data.session);
+      const { sessionId, systemMessageName, messages, modelPreset } = session;
+
+      let initiator = this.getChatCompletionInitiatorName(job.name);
 
       const chatCompletion = await this.openai.createChatCompletion({
-        model,
-        messages,
+        ...session.modelPreset,
+        messages: session.messages.formatToOpenAi(),
       });
 
       const ccm = chatCompletion.data.choices[0].message; // ccm = chat completion message (response)
       if (ccm === undefined) throw new Error('LLM API response is empty');
 
-      const [status, outputContext] =
+      let [status, outputContext] =
         await this.llmIOManager.executeOutputMiddlewareChain({
           session: job.data.session,
           llmResponse: chatCompletion.data,
-          initiator: this.getChatCompletionInitiatorName(job.name),
+          initiator,
         });
 
       /* Cancel job and history update because in middleware was called callAgain()
@@ -382,13 +442,20 @@ export class LlmOrchestrator {
       )
         return;
 
-      const outputMessage = outputContext.llmResponse?.choices[0].message;
-      if (!outputMessage)
-        throw new Error('LLM API response after OutputMiddlewares is empty!');
-      await this.hs.updateMessages(sessionId, systemMessageName, outputMessage);
-      session = await this.hs.getSession(sessionId, systemMessageName);
+      // Function result will be added to history and added to queue llmApiCallQueue.
+      // After that, the execution of this job will be canceled.
+      if (modelPreset.function_call === 'auto')
+        if (await this.callFunction(chatCompletion.data, outputContext)) return;
 
-      let initiator = this.getChatCompletionInitiatorName(job.name);
+      const llmResponse = outputContext.llmResponse?.choices[0].message;
+      if (!llmResponse)
+        throw new Error('LLM API response after OutputMiddlewares is empty!');
+
+      const responseMessage = new Message({ ...llmResponse });
+      await this.hs.appendMessages(sessionId, systemMessageName, [
+        responseMessage,
+      ]);
+      session = await this.hs.getSession(sessionId, systemMessageName);
 
       await this.eventManager.executeEventHandlers({
         ...outputContext,
@@ -409,28 +476,33 @@ export class LlmOrchestrator {
           job.data as InputContext,
         );
 
-      const newMessage: ChatCompletionRequestMessage = {
+      const newMessage = new Message({
         role: 'user',
         content: processedMessage,
-      };
+      });
 
       if (await this.hs.isExists(sessionId, systemMessageName)) {
-        await this.hs.updateMessages(sessionId, systemMessageName, newMessage);
+        await this.hs.appendMessages(sessionId, systemMessageName, [
+          newMessage,
+        ]);
       } else {
         const { systemMessage: computedSystemMessage, modelPreset } =
           await this.sms.computeSystemMessage(systemMessageName, job.data);
 
-        const systemMessage: ChatCompletionRequestMessage = {
+        const systemMessage = new Message({
           role: 'system',
           content: computedSystemMessage,
-        };
+        });
+
         await this.hs.createSession(
           sessionId,
           systemMessageName,
           modelPreset,
           systemMessage,
         );
-        await this.hs.updateMessages(sessionId, systemMessageName, newMessage);
+        await this.hs.appendMessages(sessionId, systemMessageName, [
+          newMessage,
+        ]);
       }
 
       const chatSession = await this.hs.getSession(
@@ -443,7 +515,7 @@ export class LlmOrchestrator {
           this.cfg.appName
         }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:main_flow:session:${
           chatSession.sessionId
-        }:system_message:${systemMessageName}:time:${this.getTimastamp()}`,
+        }:system_message:${systemMessageName}:time:${getTimestamp()}`,
       );
       await this.llmApiCallQueue.add(
         jobKey,
@@ -459,9 +531,5 @@ export class LlmOrchestrator {
       console.log(error);
       throw error;
     }
-  }
-
-  private getTimastamp() {
-    return Math.floor(Date.now() / 1000); // unix timestamp in seconds
   }
 }

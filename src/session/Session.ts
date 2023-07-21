@@ -5,22 +5,24 @@ import {
   ChatCompletionResponseMessage,
 } from 'openai';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
+import { ChatHistory } from './ChatHistory';
 
 export class Session implements SessionData {
   readonly sessionId: string;
   readonly systemMessageName: string;
   readonly modelPreset: SystemMessageType['modelPreset'];
-  readonly messages: ChatCompletionRequestMessage[];
-  readonly lastMessageByRole: {
+  messages: ChatHistory;
+  lastMessageByRole: {
     user: ChatCompletionRequestMessage | null;
     assistant: ChatCompletionResponseMessage | null;
     system: ChatCompletionResponseMessage | null;
     function: ChatCompletionResponseMessage | null;
   };
-  readonly handlersCount: Record<string, number>;
+  handlersCount: Record<string, number>;
   public ctx: Record<string, unknown>;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
+  readonly createdAt: number;
+  updatedAt: number;
+
   constructor(
     private readonly sessionStorage: SessionStorage,
     sessionData: SessionData,
@@ -28,7 +30,10 @@ export class Session implements SessionData {
     this.sessionId = sessionData.sessionId;
     this.systemMessageName = sessionData.systemMessageName;
     this.modelPreset = sessionData.modelPreset;
-    this.messages = sessionData.messages;
+    this.messages = new ChatHistory(
+      this.sessionStorage,
+      ...sessionData.messages,
+    );
     this.lastMessageByRole = sessionData.lastMessageByRole;
     this.handlersCount = sessionData.handlersCount;
     this.ctx = sessionData.ctx;
@@ -44,7 +49,29 @@ export class Session implements SessionData {
     );
   }
 
+  public async saveMessages(): Promise<void> {
+     this.sessionStorage.updateAllMessages(
+      this.sessionId,
+      this.systemMessageName,
+      this.messages,
+    );
+  }
+
   public async delete(): Promise<void> {
     this.sessionStorage.deleteSession(this.sessionId, this.systemMessageName);
+  }
+
+  public toJSON(): SessionData {
+    return {
+      sessionId: this.sessionId,
+      systemMessageName: this.systemMessageName,
+      modelPreset: this.modelPreset,
+      messages: this.messages,
+      lastMessageByRole: this.lastMessageByRole,
+      handlersCount: this.handlersCount,
+      ctx: this.ctx,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
   }
 }

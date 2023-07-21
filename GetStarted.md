@@ -199,3 +199,10 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
 18. [x] detect source of handled caller and return this sourceName to handler and middlewares
 19. [x] counter for each registered handler and return this counter to handler
 20. [x] create overloop prevention and provide control when registered handler
+21. [x] add support OpenAI functions
+22. [x] add createdAt to each message to input, but optional
+23. [ ] ? add mechanism to insert messages to own slots in history, or sort all messages by timestamp before OpenAI call
+24. [ ] add incoming messages accumulator to session
+25. [ ] add ability to send batch of messages and system messages to LLM
+26. [ ] add event if LLM response delayed
+27. [ ] add global error handler - all errors need send to registered global ErrorHandler
