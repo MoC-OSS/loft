@@ -36,7 +36,7 @@ export const createChatCompletionRequestSchema = z
             ),
 
           functions: z.array(ChatCompletionFunctions).optional(),
-          function_call: CreateChatCompletionRequestFunctionCall, // function_call: "none" will force the model to generate a user-facing message.
+          function_call: CreateChatCompletionRequestFunctionCall.optional(), // function_call: "none" will force the model to generate a user-facing message.
           temperature: z
             .number()
             .optional()
