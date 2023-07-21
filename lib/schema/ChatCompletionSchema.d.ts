@@ -6,13 +6,13 @@ export declare const ChatCompletionInputSchema: z.ZodObject<{
     intent: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     message: string;
-    sessionId: string;
     systemMessageName: string;
+    sessionId: string;
     intent: string;
 }, {
     message: string;
-    sessionId: string;
     systemMessageName: string;
+    sessionId: string;
     intent: string;
 }>;
 //# sourceMappingURL=ChatCompletionSchema.d.ts.map

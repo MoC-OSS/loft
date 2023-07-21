@@ -10,6 +10,8 @@ export { S3Service } from './S3Service';
 export { SessionStorage } from './session/SessionStorage';
 export { Session } from './session/Session';
 export { Config, SystemMessageComputer, InputContext, OutputContext, InputData, SessionData, } from './@types/index';
+export { Message } from './session/Message';
+export { ChatHistory } from './session/ChatHistory';
 import { MiddlewareStatus as MdStatus } from './@types/index';
 export declare const MiddlewareStatuses: Record<MdStatus, MdStatus>;
 export type MiddlewareStatus = MdStatus;

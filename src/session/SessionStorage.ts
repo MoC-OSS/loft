@@ -3,9 +3,8 @@ import {
   ChatCompletionRequestMessage,
   ChatCompletionRequestMessageRoleEnum,
   ChatCompletionResponseMessage,
-  ChatCompletionResponseMessageRoleEnum,
 } from 'openai';
-import { ChatCompletionMessage, SessionData } from '../@types';
+import { SessionData } from '../@types';
 import { deepEqual, getTimestamp } from '../helpers';
 import { Session } from './Session';
 import { ChatHistory } from './ChatHistory';

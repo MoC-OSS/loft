@@ -48,6 +48,5 @@ export declare class ChatCompletion {
     private getChatCompletionInitiatorName;
     private chatCompletionCallProcessor;
     private chatCompletionBeginProcessor;
-    private getTimastamp;
 }
 //# sourceMappingURL=ChatCompletion.d.ts.map

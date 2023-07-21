@@ -3,12 +3,14 @@ import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { PromptType } from '../schema/PromptSchema';
 import { Session } from '../session/Session';
 import { ChatCompletionCallInitiator } from '../ChatCompletion';
-export type ChatCompletionMessage = ChatCompletionRequestMessage & ChatCompletionResponseMessage;
+import { ChatHistory } from '../session/ChatHistory';
+export interface ChatCompletionMessage extends ChatCompletionRequestMessage, ChatCompletionResponseMessage {
+}
 export interface SessionData {
     sessionId: string;
     systemMessageName: string;
     modelPreset: SystemMessageType['modelPreset'];
-    messages: ChatCompletionMessage[];
+    messages: ChatHistory;
     lastMessageByRole: {
         user: ChatCompletionRequestMessage | null;
         assistant: ChatCompletionResponseMessage | null;
@@ -17,8 +19,8 @@ export interface SessionData {
     };
     handlersCount: Record<string, number>;
     ctx: Record<string, unknown>;
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt: number;
+    updatedAt: number;
 }
 export interface InputData {
     systemMessageName: string;

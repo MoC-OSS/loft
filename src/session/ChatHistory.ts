@@ -60,10 +60,6 @@ export class ChatHistory extends QueryByArrayOfObjects<Message> {
     this.hs.updateAllMessages(sessionId, systemMessageName, this);
   }
 
-  // toJSON() {
-  //   return [...this.map((message) => message.toJSON())];
-  // }
-
   public formatToOpenAi(): ChatCompletionMessage[] {
     let messages = this.map((message) => message.formatToOpenAi()).filter(
       isNotUndefined,
