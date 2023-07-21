@@ -31,13 +31,13 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
                 description?: string | undefined;
                 parameters?: Record<string, any> | undefined;
             }>, "many">>;
-            function_call: z.ZodUnion<[z.ZodObject<{
+            function_call: z.ZodOptional<z.ZodUnion<[z.ZodObject<{
                 name: z.ZodString;
             }, "strip", z.ZodTypeAny, {
                 name: string;
             }, {
                 name: string;
-            }>, z.ZodString]>;
+            }>, z.ZodString]>>;
             temperature: z.ZodOptional<z.ZodNumber>;
             top_p: z.ZodOptional<z.ZodNumber>;
             n: z.ZodOptional<z.ZodNumber>;
@@ -49,16 +49,14 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             logit_bias: z.ZodOptional<z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodNumber>, Record<string, number>, Record<string, number>>>;
         }, "strip", z.ZodTypeAny, {
             model: string;
-            function_call: (string | {
-                name: string;
-            }) & (string | {
-                name: string;
-            } | undefined);
             functions?: {
                 name: string;
                 description?: string | undefined;
                 parameters?: Record<string, any> | undefined;
             }[] | undefined;
+            function_call?: string | {
+                name: string;
+            } | undefined;
             temperature?: number | undefined;
             top_p?: number | undefined;
             n?: number | undefined;
@@ -70,16 +68,14 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             logit_bias?: Record<string, number> | undefined;
         }, {
             model: string;
-            function_call: (string | {
-                name: string;
-            }) & (string | {
-                name: string;
-            } | undefined);
             functions?: {
                 name: string;
                 description?: string | undefined;
                 parameters?: Record<string, any> | undefined;
             }[] | undefined;
+            function_call?: string | {
+                name: string;
+            } | undefined;
             temperature?: number | undefined;
             top_p?: number | undefined;
             n?: number | undefined;
@@ -95,16 +91,14 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
         systemMessage: string;
         modelPreset: {
             model: string;
-            function_call: (string | {
-                name: string;
-            }) & (string | {
-                name: string;
-            } | undefined);
             functions?: {
                 name: string;
                 description?: string | undefined;
                 parameters?: Record<string, any> | undefined;
             }[] | undefined;
+            function_call?: string | {
+                name: string;
+            } | undefined;
             temperature?: number | undefined;
             top_p?: number | undefined;
             n?: number | undefined;
@@ -120,16 +114,14 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
         systemMessage: string;
         modelPreset: {
             model: string;
-            function_call: (string | {
-                name: string;
-            }) & (string | {
-                name: string;
-            } | undefined);
             functions?: {
                 name: string;
                 description?: string | undefined;
                 parameters?: Record<string, any> | undefined;
             }[] | undefined;
+            function_call?: string | {
+                name: string;
+            } | undefined;
             temperature?: number | undefined;
             top_p?: number | undefined;
             n?: number | undefined;
@@ -147,16 +139,14 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
         systemMessage: string;
         modelPreset: {
             model: string;
-            function_call: (string | {
-                name: string;
-            }) & (string | {
-                name: string;
-            } | undefined);
             functions?: {
                 name: string;
                 description?: string | undefined;
                 parameters?: Record<string, any> | undefined;
             }[] | undefined;
+            function_call?: string | {
+                name: string;
+            } | undefined;
             temperature?: number | undefined;
             top_p?: number | undefined;
             n?: number | undefined;
@@ -174,16 +164,14 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
         systemMessage: string;
         modelPreset: {
             model: string;
-            function_call: (string | {
-                name: string;
-            }) & (string | {
-                name: string;
-            } | undefined);
             functions?: {
                 name: string;
                 description?: string | undefined;
                 parameters?: Record<string, any> | undefined;
             }[] | undefined;
+            function_call?: string | {
+                name: string;
+            } | undefined;
             temperature?: number | undefined;
             top_p?: number | undefined;
             n?: number | undefined;

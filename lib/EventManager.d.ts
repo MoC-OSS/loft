@@ -5,7 +5,7 @@ export type Handler = (response: OutputContext, next: () => Promise<void>) => Pr
 export interface EventHandler {
     eventDetector: EventDetector;
     handler: Handler;
-    priority: 0;
+    priority: number;
     maxLoops: number;
 }
 export type DefaultHandler = (response: OutputContext) => Promise<void>;
