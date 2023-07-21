@@ -15,7 +15,7 @@ export type Handler = (
 export interface EventHandler {
   eventDetector: EventDetector;
   handler: Handler;
-  priority: 0;
+  priority: number;
   maxLoops: number;
 }
 
@@ -61,6 +61,10 @@ export class EventManager {
     // Set a default value for maxLoops if it's not set
     if (eventHandler.maxLoops === undefined) {
       eventHandler.maxLoops = 10; // default value
+    }
+    // Set a default value for priority if it's not set
+    if (!eventHandler.priority) {
+      eventHandler.priority = 0; // default value
     }
 
     this.eventHandlers.set(name, eventHandler);
@@ -117,10 +121,10 @@ export class EventManager {
               systemMessageName,
               name,
             );
-            response.session = (await this.sessionStorage.getSession(
+            response.session = await this.sessionStorage.getSession(
               sessionId,
               systemMessageName,
-            )) as Session;
+            );
 
             // over-loop handler prevention
             const { handlersCount } = response.session;

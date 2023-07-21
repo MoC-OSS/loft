@@ -41,16 +41,16 @@ export class Session implements SessionData {
     this.updatedAt = sessionData.updatedAt;
   }
 
-  public async saveCtx(): Promise<void> {
-    this.sessionStorage.saveCtx(
+  public async saveCtx(): Promise<Session> {
+    return this.sessionStorage.saveCtx(
       this.sessionId,
       this.systemMessageName,
       this.ctx,
     );
   }
 
-  public async saveMessages(): Promise<void> {
-     this.sessionStorage.updateAllMessages(
+  public async saveMessages(): Promise<Session> {
+    return this.sessionStorage.updateAllMessages(
       this.sessionId,
       this.systemMessageName,
       this.messages,

@@ -72,42 +72,6 @@ export class SessionStorage {
     );
   }
 
-  async updateAllMessages(
-    sessionId: string,
-    systemMessageName: string,
-    messages: Message[] | ChatHistory,
-  ): Promise<ChatHistory> {
-    try {
-      let session = await this.getSession(sessionId, systemMessageName);
-
-      session.messages.length = 0; // clear messages array
-      messages.forEach((message) => {
-        session.messages.push(message);
-        session.lastMessageByRole[message.role] = message;
-      });
-      session.updatedAt = getTimestamp();
-
-      const sessionKey = this.getChatCompletionSessionKey(
-        sessionId,
-        systemMessageName,
-      );
-
-      await this.client.set(
-        sessionKey,
-        JSON.stringify(session),
-        'EX',
-        this.sessionTtl,
-      );
-
-      session = await this.getSession(sessionId, systemMessageName);
-
-      return session.messages;
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
-  }
-
   async appendMessages(
     sessionId: string,
     systemMessageName: string,
@@ -217,7 +181,7 @@ export class SessionStorage {
     sessionId: string,
     systemMessageName: string,
     ctx: Record<string, unknown>,
-  ) {
+  ): Promise<Session> {
     const session = await this.getSession(sessionId, systemMessageName);
 
     if (deepEqual(session.ctx, ctx)) return session; //skip if ctx is the same
@@ -236,6 +200,40 @@ export class SessionStorage {
     );
 
     return this.getSession(sessionId, systemMessageName);
+  }
+
+  async updateAllMessages(
+    sessionId: string,
+    systemMessageName: string,
+    messages: Message[] | ChatHistory,
+  ): Promise<Session> {
+    try {
+      let session = await this.getSession(sessionId, systemMessageName);
+
+      session.messages.length = 0; // clear messages array
+      messages.forEach((message) => {
+        session.messages.push(message);
+        session.lastMessageByRole[message.role] = message;
+      });
+      session.updatedAt = getTimestamp();
+
+      const sessionKey = this.getChatCompletionSessionKey(
+        sessionId,
+        systemMessageName,
+      );
+
+      await this.client.set(
+        sessionKey,
+        JSON.stringify(session),
+        'EX',
+        this.sessionTtl,
+      );
+
+      return this.getSession(sessionId, systemMessageName);
+    } catch (error) {
+      console.log(error);
+      throw error;
+    }
   }
 
   async getSession(
