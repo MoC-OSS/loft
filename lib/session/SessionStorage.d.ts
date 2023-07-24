@@ -2,7 +2,6 @@ import { Redis, Cluster } from 'ioredis';
 import { ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum, ChatCompletionResponseMessage } from 'openai';
 import { SessionData } from '../@types';
 import { Session } from './Session';
-import { ChatHistory } from './ChatHistory';
 import { Message } from './Message';
 export declare class SessionStorage {
     private readonly client;
@@ -18,8 +17,7 @@ export declare class SessionStorage {
     deleteSessionsById(sessionId: string): Promise<void>;
     private findKeysByPartialName;
     incrementHandlerCount(sessionId: string, systemMessageName: string, handlerName: string): Promise<void>;
-    saveCtx(sessionId: string, systemMessageName: string, ctx: Record<string, unknown>): Promise<Session>;
-    updateAllMessages(sessionId: string, systemMessageName: string, messages: Message[] | ChatHistory): Promise<Session>;
+    save(session: Session): Promise<Session>;
     getSession(sessionId: string, systemMessageName: string): Promise<Session>;
 }
 //# sourceMappingURL=SessionStorage.d.ts.map

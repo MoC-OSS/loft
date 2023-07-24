@@ -20,8 +20,7 @@ export declare class Session implements SessionData {
     readonly createdAt: number;
     updatedAt: number;
     constructor(sessionStorage: SessionStorage, sessionData: SessionData);
-    saveCtx(): Promise<Session>;
-    saveMessages(): Promise<Session>;
+    save(): Promise<Session>;
     delete(): Promise<void>;
     toJSON(): SessionData;
 }

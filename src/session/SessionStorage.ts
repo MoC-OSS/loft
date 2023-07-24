@@ -177,63 +177,40 @@ export class SessionStorage {
     );
   }
 
-  async saveCtx(
-    sessionId: string,
-    systemMessageName: string,
-    ctx: Record<string, unknown>,
-  ): Promise<Session> {
-    const session = await this.getSession(sessionId, systemMessageName);
+  async save(session: Session): Promise<Session> {
+    const existingSession = await this.getSession(
+      session.sessionId,
+      session.systemMessageName,
+    );
 
-    if (deepEqual(session.ctx, ctx)) return session; //skip if ctx is the same
+    if (
+      deepEqual(existingSession.ctx, session.ctx) &&
+      deepEqual(existingSession.messages, session.messages)
+    ) {
+      return existingSession;
+    }
 
-    session.ctx = ctx;
+    existingSession.messages.length = 0;
+    session.messages.forEach((message) => {
+      existingSession.messages.push(message);
+      existingSession.lastMessageByRole[message.role] = message;
+    });
+
+    existingSession.ctx = session.ctx;
+    existingSession.updatedAt = getTimestamp();
 
     const sessionKey = this.getChatCompletionSessionKey(
-      sessionId,
-      systemMessageName,
+      session.sessionId,
+      session.systemMessageName,
     );
     await this.client.set(
       sessionKey,
-      JSON.stringify(session),
+      JSON.stringify(existingSession),
       'EX',
       this.sessionTtl,
     );
 
-    return this.getSession(sessionId, systemMessageName);
-  }
-
-  async updateAllMessages(
-    sessionId: string,
-    systemMessageName: string,
-    messages: Message[] | ChatHistory,
-  ): Promise<Session> {
-    try {
-      let session = await this.getSession(sessionId, systemMessageName);
-
-      session.messages.length = 0; // clear messages array
-      messages.forEach((message) => {
-        session.messages.push(message);
-        session.lastMessageByRole[message.role] = message;
-      });
-      session.updatedAt = getTimestamp();
-
-      const sessionKey = this.getChatCompletionSessionKey(
-        sessionId,
-        systemMessageName,
-      );
-
-      await this.client.set(
-        sessionKey,
-        JSON.stringify(session),
-        'EX',
-        this.sessionTtl,
-      );
-
-      return this.getSession(sessionId, systemMessageName);
-    } catch (error) {
-      console.log(error);
-      throw error;
-    }
+    return this.getSession(session.sessionId, session.systemMessageName);
   }
 
   async getSession(

@@ -41,20 +41,8 @@ export class Session implements SessionData {
     this.updatedAt = sessionData.updatedAt;
   }
 
-  public async saveCtx(): Promise<Session> {
-    return this.sessionStorage.saveCtx(
-      this.sessionId,
-      this.systemMessageName,
-      this.ctx,
-    );
-  }
-
-  public async saveMessages(): Promise<Session> {
-    return this.sessionStorage.updateAllMessages(
-      this.sessionId,
-      this.systemMessageName,
-      this.messages,
-    );
+  public async save(): Promise<Session> {
+    return this.sessionStorage.save(this);
   }
 
   public async delete(): Promise<void> {

@@ -12,7 +12,6 @@ export declare class ChatHistory extends QueryByArrayOfObjects<Message> {
     appendAfterMessageId(message: Message, id: string): void;
     replaceById(id: string, message: Message): void;
     replaceAll(messages: Message[]): ChatHistory;
-    save(sessionId: string, systemMessageName: string): void;
     formatToOpenAi(): ChatCompletionMessage[];
 }
 //# sourceMappingURL=ChatHistory.d.ts.map
