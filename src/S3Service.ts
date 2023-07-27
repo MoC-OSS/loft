@@ -10,6 +10,9 @@ import {
   createChatCompletionRequestSchema,
 } from './schema/CreateChatCompletionRequestSchema';
 import { PromptSchema, PromptsFileType } from './schema/PromptSchema';
+import { getLogger } from './Logger';
+
+const l = getLogger('S3Service');
 
 export class S3Service {
   private readonly client: S3Client;
@@ -20,7 +23,9 @@ export class S3Service {
     private readonly bucketName: string,
     private readonly appName: string,
   ) {
+    l.info('S3Service initialization...');
     this.client = new S3Client({ region: this.region });
+    l.info(`Put Bucket Lifecycle Configuration to error log files...`);
     const command = new PutBucketLifecycleConfigurationCommand(
       this.getS3LogFileParams(),
     );
@@ -29,6 +34,7 @@ export class S3Service {
 
   async getFile(filename: string) {
     try {
+      l.info(`getting file: ${filename} from S3...`);
       const command = new GetObjectCommand({
         Bucket: this.bucketName,
         Key: filename,
@@ -41,6 +47,7 @@ export class S3Service {
         err instanceof S3ServiceException &&
         err.$metadata.httpStatusCode == 404
       ) {
+        l.warn(`File ${filename} not found!`);
         return null;
       }
       throw err;
@@ -49,20 +56,23 @@ export class S3Service {
 
   async getSystemMessages(): Promise<CreateChatCompletionRequestType> {
     try {
+      l.info('getting systemMessages from S3...');
       const fileName = `${this.appName}/${this.env}/system_messages.json`;
       const file = await this.getFile(fileName);
 
       if (file === null || file === undefined) {
         const errorMessage = `File ${fileName} not found!`;
-        console.error(errorMessage, 'App will be terminated.');
+        l.error(errorMessage, 'App will be terminated.');
         await this.logToS3(errorMessage);
         process.exit(1);
       }
 
+      l.info('parsing systemMessages...');
       const systemMessages = JSON.parse(await file.transformToString());
+      l.info('validating systemMessages...');
       return createChatCompletionRequestSchema.parse(systemMessages);
     } catch (error) {
-      console.error(error);
+      l.error(error);
       await this.logToS3((error as Error).toString());
       throw error;
     }
@@ -70,36 +80,41 @@ export class S3Service {
 
   async getPrompts(): Promise<PromptsFileType> {
     try {
+      l.info('getting prompts from S3...');
       const fileName = `${this.appName}/${this.env}/prompts.json`;
       const file = await this.getFile(fileName);
 
       if (file === null || file === undefined) {
         const errorMessage = `File ${fileName} not found!`;
-        console.error(errorMessage, 'App will be terminated.');
+        l.error(errorMessage, 'App will be terminated.');
         await this.logToS3(errorMessage);
         process.exit(1);
       }
 
+      l.info('parsing prompts...');
       const prompts = JSON.parse(await file.transformToString());
+      l.info('validating prompts...');
       return PromptSchema.parse(prompts);
     } catch (error) {
-      console.error(error);
+      l.error(error);
       await this.logToS3((error as Error).toString());
       throw error;
     }
   }
 
   async logToS3(data: string) {
+    l.info('logging error to S3...');
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: `${this.appName}/${this.env}/log_errors.txt`,
       Body: data,
     });
 
-    await this.client.send(command).catch((err) => console.error(err));
+    await this.client.send(command).catch((err) => l.error(err));
   }
 
   private getS3LogFileParams() {
+    l.info('render S3 log file params...');
     return {
       Bucket: this.bucketName,
       LifecycleConfiguration: {

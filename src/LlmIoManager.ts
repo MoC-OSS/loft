@@ -1,14 +1,15 @@
 import {
   AsyncLLMInputMiddleware,
   AsyncLLMOutputMiddleware,
-  IOContext,
   InputContext,
-  InputData,
   LLMInputMiddlewares,
   LLMOutputMiddlewares,
   MiddlewareStatus,
   OutputContext,
 } from './@types';
+import { getLogger } from './Logger';
+
+const l = getLogger('LlmIOManager');
 
 export type InputMiddlewareContext = {
   message: string;
@@ -18,7 +19,9 @@ export class LlmIOManager {
   private llmInputMiddlewareChain: LLMInputMiddlewares = new Map();
   private llmOutputMiddlewareChain: LLMOutputMiddlewares = new Map();
 
-  constructor() {}
+  constructor() {
+    l.info('LlmIOManager initialization...');
+  }
 
   useInput(name: string, middleware: AsyncLLMInputMiddleware) {
     if (this.llmInputMiddlewareChain.has(middleware.name)) {
@@ -26,6 +29,7 @@ export class LlmIOManager {
         `A input middleware with the name "${name}" already exists.`,
       );
     }
+    l.info(`Registered input middleware with the name "${name}".`);
     this.llmInputMiddlewareChain.set(name, middleware);
   }
 
@@ -35,12 +39,17 @@ export class LlmIOManager {
         `A output middleware with the name "${name}" already exists.`,
       );
     }
+    l.info(`Registered output middleware with the name "${name}".`);
     this.llmOutputMiddlewareChain.set(name, middleware);
   }
 
   async executeInputMiddlewareChain(
     inputContext: InputContext,
   ): Promise<InputContext> {
+    const { sessionId, systemMessageName } = inputContext;
+    l.info(
+      `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} - Executing input middleware chain`,
+    );
     let middlewaresIterator = this.llmInputMiddlewareChain.entries();
     let currentMiddlewareEntry = middlewaresIterator.next();
     let modifiedContext: InputContext = { ...inputContext };
@@ -54,6 +63,9 @@ export class LlmIOManager {
         currentMiddlewareEntry = middlewaresIterator.next();
 
         try {
+          l.info(
+            `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} - Executing middleware: ${name}...`,
+          );
           await middleware(
             modifiedInputContext,
             (nextInputContext: InputContext) => {
@@ -62,15 +74,15 @@ export class LlmIOManager {
             },
           );
         } catch (error) {
-          console.error(`Error occurred in middleware ${name}: ${error}`);
+          l.error(`Error occurred in middleware ${name}: ${error}`);
           throw error;
         }
       };
 
       await next(inputContext);
     } catch (error) {
-      console.error(
-        `Error occurred while executing middleware chain: ${error}`,
+      l.error(
+        `Error occurred while executing middleware chain by sessionId: ${sessionId}, systemMessageName: ${systemMessageName} - ${error}`,
       );
     }
 
@@ -80,6 +92,10 @@ export class LlmIOManager {
   async executeOutputMiddlewareChain(
     outputContext: OutputContext,
   ): Promise<[status: string, outputContext: OutputContext]> {
+    const { sessionId, systemMessageName } = outputContext.session;
+    l.info(
+      `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} - Executing output middleware chain`,
+    );
     let middlewaresIterator = this.llmOutputMiddlewareChain.entries();
     let currentMiddlewareEntry = middlewaresIterator.next();
     let modifiedContext: OutputContext = { ...outputContext };
@@ -94,6 +110,9 @@ export class LlmIOManager {
         currentMiddlewareEntry = middlewaresIterator.next();
 
         try {
+          l.info(
+            `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} - Executing middleware: ${name}...`,
+          );
           const { status, newOutputContext } = await middleware(
             modifiedOutputContext,
             (nextIOContext: OutputContext) => {
@@ -116,23 +135,35 @@ export class LlmIOManager {
             return next(newOutputContext);
           }
         } catch (error) {
-          console.error(`Error occurred in middleware ${name}: ${error}`);
+          l.error(`Error occurred in middleware ${name}: ${error}`);
           throw error;
         }
       };
 
       await next(outputContext);
     } catch (error) {
-      console.error(
-        `Error occurred while executing middleware chain: ${error}`,
-      );
+      l.error(`Error occurred while executing middleware chain: ${error}`);
     }
 
-    const isCallAgain = middlewareStatuses.some(({ status }) =>
-      status.includes(MiddlewareStatus.CALL_AGAIN),
+    l.info(
+      `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} - Middleware statuses: ${middlewareStatuses}`,
+    );
+    const isCallAgain = middlewareStatuses.some(
+      ({ status }) =>
+        status.includes(MiddlewareStatus.CALL_AGAIN) ||
+        status.includes(MiddlewareStatus.STOP),
     );
 
-    if (isCallAgain) return [MiddlewareStatus.CALL_AGAIN, modifiedContext];
-    else return [MiddlewareStatus.CONTINUE, modifiedContext];
+    if (isCallAgain) {
+      l.info(
+        `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} - LLM Response handling will not be finished. Because one of Output Middlewares returned status: ${MiddlewareStatus.CALL_AGAIN} | ${MiddlewareStatus.STOP}, which means that the Output Middlewares chain will be executed again in the next iteration.`,
+      );
+      return [MiddlewareStatus.CALL_AGAIN, modifiedContext];
+    } else {
+      l.info(
+        `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} - LLM Response successfully handled by Output Middlewares. and will will be passed to EventManager handlers.`,
+      );
+      return [MiddlewareStatus.CONTINUE, modifiedContext];
+    }
   }
 }

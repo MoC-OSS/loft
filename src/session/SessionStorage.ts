@@ -9,13 +9,18 @@ import { deepEqual, getTimestamp } from '../helpers';
 import { Session } from './Session';
 import { ChatHistory } from './ChatHistory';
 import { Message } from './Message';
+import { getLogger } from './../Logger';
+
+const l = getLogger('SessionStorage');
 
 export class SessionStorage {
   constructor(
     private readonly client: Redis | Cluster,
     private readonly sessionTtl: number,
     private readonly appName: string,
-  ) {}
+  ) {
+    l.info('SessionStorage initialization...');
+  }
 
   private getChatCompletionSessionKey(
     sessionId: string,
@@ -32,6 +37,7 @@ export class SessionStorage {
       sessionId,
       systemMessageName,
     );
+    l.info(`Check session exists by key: ${sessionKey}`);
     const result = await this.client.exists(sessionKey);
     return result === 1;
   }
@@ -46,12 +52,13 @@ export class SessionStorage {
       sessionId,
       systemMessageName,
     );
+    l.info(`Create session by key: ${sessionKey}`);
     const timestamp = getTimestamp();
     const session = new Session(this, {
       sessionId,
       systemMessageName,
       modelPreset,
-      messages: new ChatHistory(this, message),
+      messages: new ChatHistory(sessionId, systemMessageName, message),
       lastMessageByRole: {
         user: null,
         assistant: null,
@@ -78,6 +85,10 @@ export class SessionStorage {
     newMessages: Message[],
   ): Promise<void> {
     try {
+      l.info(
+        `Append messages to session ${sessionId}, systemMessageName: ${systemMessageName}`,
+      );
+
       const session = await this.getSession(sessionId, systemMessageName);
 
       newMessages.forEach((newMessage) => {
@@ -99,7 +110,7 @@ export class SessionStorage {
         this.sessionTtl,
       );
     } catch (error) {
-      console.log(error);
+      l.error(error);
       throw error;
     }
   }
@@ -110,6 +121,10 @@ export class SessionStorage {
     newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage,
     role: ChatCompletionRequestMessageRoleEnum = 'user',
   ) {
+    l.info(
+      `Replace last user message in session ${sessionId}, systemMessageName: ${systemMessageName}`,
+    );
+
     const session = await this.getSession(sessionId, systemMessageName);
     if (session.messages[session.messages.length - 1].role === role) {
       session.updatedAt = getTimestamp();
@@ -139,18 +154,22 @@ export class SessionStorage {
       sessionId,
       systemMessageName,
     );
+    l.info(`Delete session by key: ${sessionKey}`);
+
     await this.client.del(sessionKey);
   }
 
   async deleteSessionsById(sessionId: string) {
+    l.info(`Delete sessions by id: ${sessionId}`);
     const keys = await this.findKeysByPartialName(sessionId);
     await this.client.del(keys);
   }
   private async findKeysByPartialName(partialKey: string) {
     try {
+      l.info(`Find keys by partial name: ${partialKey}`);
       return this.client.keys(`*${partialKey}*`);
     } catch (error) {
-      console.log(error);
+      l.error(error);
       throw error;
     }
   }
@@ -160,6 +179,9 @@ export class SessionStorage {
     systemMessageName: string,
     handlerName: string,
   ) {
+    l.info(
+      `Increment handler count: ${handlerName}, sessionId: ${sessionId}, systemMessageName: ${systemMessageName}`,
+    );
     const session = await this.getSession(sessionId, systemMessageName);
     if (!session.handlersCount[handlerName]) {
       session.handlersCount[handlerName] = 0;
@@ -178,6 +200,9 @@ export class SessionStorage {
   }
 
   async save(session: Session): Promise<Session> {
+    l.info(
+      `Save session: ${session.sessionId}, systemMessageName: ${session.systemMessageName}`,
+    );
     const existingSession = await this.getSession(
       session.sessionId,
       session.systemMessageName,
@@ -217,6 +242,9 @@ export class SessionStorage {
     sessionId: string,
     systemMessageName: string,
   ): Promise<Session> {
+    l.info(
+      `Get session: ${sessionId}, systemMessageName: ${systemMessageName}`,
+    );
     const sessionKey = this.getChatCompletionSessionKey(
       sessionId,
       systemMessageName,

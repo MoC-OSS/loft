@@ -1,3 +1,7 @@
+import { getLogger } from './../Logger';
+
+const l = getLogger('ChatHistoryQueryEngine');
+
 type QueryOperator<T> =
   | { $eq?: T }
   | { $ne?: T }
@@ -27,9 +31,11 @@ type FullQuery<T> = Query<T> | LogicalQuery<T>;
 export abstract class QueryByArrayOfObjects<T> extends Array<T> {
   constructor(...items: T[]) {
     super(...items);
+    l.info(`ChatHistoryQueryEngine initialization...`);
   }
 
   query(query: FullQuery<T>): T[] {
+    l.info(`query: ${JSON.stringify(query)}`);
     return this.filter((item) => this.evaluate(item, query));
   }
 

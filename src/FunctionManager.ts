@@ -1,4 +1,7 @@
 import { OutputContext } from './@types';
+import { getLogger } from './Logger';
+
+const l = getLogger('FunctionManager');
 
 export type OpenAiFunctionArgs = any;
 
@@ -20,6 +23,7 @@ export class FunctionManager {
     }
 
     this.functions.set(name, fn);
+    l.info(`Registered AI function with the name "${name}".`);
   }
 
   async executeFunction(

@@ -185,7 +185,6 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
 3. [x] External dependency injection
 4. [x] write docs
 5. [x] create example project
-6. [ ] connect Langchain history
 7. [x] separate chats by combined sessionId, systemMessageId
 8. [x] add user context to middlewares, handlers, etc...
 9. [x] add method to create injections using systemMessageName
@@ -201,8 +200,9 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
 20. [x] create overloop prevention and provide control when registered handler
 21. [x] add support OpenAI functions
 22. [x] add createdAt to each message to input, but optional
-23. [ ] ? add mechanism to insert messages to own slots in history, or sort all messages by timestamp before OpenAI call
-24. [ ] add incoming messages accumulator to session
-25. [ ] add ability to send batch of messages and system messages to LLM
-26. [ ] add event if LLM response delayed
-27. [ ] add global error handler - all errors need send to registered global ErrorHandler
+23. [ ] add incoming messages accumulator to session
+24. [ ] add ability to send batch of messages and system messages to LLM
+25. [ ] add event if LLM response delayed
+26. [x] add global error handler - all errors need send to registered global ErrorHandler
+27. [x] add logger to LLM Orchestrator
+28. [ ] Create Custom Error Classes

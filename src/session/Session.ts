@@ -6,6 +6,9 @@ import {
 } from 'openai';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { ChatHistory } from './ChatHistory';
+import { getLogger } from './../Logger';
+
+const l = getLogger('Session');
 
 export class Session implements SessionData {
   readonly sessionId: string;
@@ -29,9 +32,13 @@ export class Session implements SessionData {
   ) {
     this.sessionId = sessionData.sessionId;
     this.systemMessageName = sessionData.systemMessageName;
+
+    l.info(`${this.logPrefix()} - Session initialization...`);
+
     this.modelPreset = sessionData.modelPreset;
     this.messages = new ChatHistory(
-      this.sessionStorage,
+      this.sessionId,
+      this.systemMessageName,
       ...sessionData.messages,
     );
     this.lastMessageByRole = sessionData.lastMessageByRole;
@@ -41,11 +48,17 @@ export class Session implements SessionData {
     this.updatedAt = sessionData.updatedAt;
   }
 
+  private logPrefix(): string {
+    return `sessionId: ${this.sessionId}, systemMessageName: ${this.systemMessageName} -`;
+  }
+
   public async save(): Promise<Session> {
+    l.info(`${this.logPrefix()} - save session`);
     return this.sessionStorage.save(this);
   }
 
   public async delete(): Promise<void> {
+    l.info(`${this.logPrefix()} - delete session`);
     this.sessionStorage.deleteSession(this.sessionId, this.systemMessageName);
   }
 

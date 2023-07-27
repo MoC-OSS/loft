@@ -7,6 +7,9 @@ import {
 import { S3Service } from '../S3Service';
 import { PromptType } from '../schema/PromptSchema';
 import { PromptStorage } from './PromptStorage';
+import { getLogger } from './../Logger';
+
+const l = getLogger('PromptService');
 
 export class PromptService {
   private promptComputers: PromptComputers = new Map();
@@ -22,11 +25,15 @@ export class PromptService {
         `A PromptComputer with the name "${name}" already exists.`,
       );
     }
+
+    l.info(`Registered PromptComputer with the name "${name}".`);
     this.promptComputers.set(name, promptComputer);
   }
 
   async syncPrompts(): Promise<void> {
+    l.info('getting prompts from S3...');
     const prompts = await this.s3.getPrompts();
+    l.info('syncing prompts to redis...');
     await this.promptStorage.syncPrompts(prompts);
   }
 
@@ -34,7 +41,13 @@ export class PromptService {
     promptName: string,
     session: SessionData,
   ): Promise<PromptType> {
+    l.info(
+      `sessionId: ${session.sessionId} - getting prompt: ${promptName} computer from map...`,
+    );
     const promptComputer = this.promptComputers.get(promptName);
+    l.info(
+      `sessionId: ${session.sessionId} - getting prompt: ${promptName} from redis...`,
+    );
     const prompt = await this.promptStorage.getPromptByName(promptName);
     if (!prompt) {
       throw new Error(
@@ -42,7 +55,13 @@ export class PromptService {
       );
     }
 
+    l.info(
+      `sessionId: ${session.sessionId} - checking if prompt by name: ${promptName} and promptComputer exists...`,
+    );
     if (prompt && promptComputer) {
+      l.info(
+        `sessionId: ${session.sessionId} - computing prompt: ${promptName}...`,
+      );
       return promptComputer(prompt, session);
     }
 

@@ -1,5 +1,4 @@
 import {
-  InputContext,
   InputData,
   SystemMessageComputer,
   SystemMessageComputers,
@@ -7,6 +6,9 @@ import {
 import { S3Service } from '../S3Service';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { SystemMessageStorage } from './SystemMessageStorage';
+import { getLogger } from './../Logger';
+
+const l = getLogger('SystemMessageService');
 
 export class SystemMessageService {
   private systemMessageComputers: SystemMessageComputers = new Map();
@@ -15,6 +17,7 @@ export class SystemMessageService {
     private readonly systemMessageStorage: SystemMessageStorage,
     private readonly s3: S3Service,
   ) {
+    l.info('SystemMessageService initialization...');
     this.systemMessageStorage = systemMessageStorage;
   }
 
@@ -24,13 +27,14 @@ export class SystemMessageService {
         `A systemMessage computer with the name "${name}" already exists.`,
       );
     }
+    l.info(`Registered systemMessage computer with the name "${name}".`);
     this.systemMessageComputers.set(name, systemMessageComputer);
   }
 
   async syncSystemMessages(): Promise<void> {
-    // get SystemMessages object from S3
+    l.info('getting systemMessages from S3...');
     const systemMessages = await this.s3.getSystemMessages();
-    // sync SystemMessages to redis
+    l.info('syncing systemMessages to redis...');
     await this.systemMessageStorage.syncSystemMessages(systemMessages);
   }
 
@@ -38,17 +42,26 @@ export class SystemMessageService {
     systemMessageName: string,
     context: InputData,
   ): Promise<SystemMessageType> {
+    l.info(`getting systemMessage: ${systemMessageName} computer from map...`);
     const systemMessageComputer =
       this.systemMessageComputers.get(systemMessageName);
+    l.info(`getting systemMessage: ${systemMessageName} from redis...`);
     const systemMessage =
       await this.systemMessageStorage.getSystemMessageByName(systemMessageName);
+
     if (!systemMessage) {
       throw new Error(
         `SystemMessage with name "${systemMessageName}" does not exist. Please upload SystemMessages with model presets to AWS S3 for sync to Redis and restart the App.`,
       );
     }
 
+    l.info(
+      `checking if systemMessage by name: ${systemMessageName} and systemMessageComputer exists...`,
+    );
     if (systemMessage && systemMessageComputer) {
+      l.info(
+        `computing systemMessage: ${systemMessageName} with systemMessageComputer...`,
+      );
       return systemMessageComputer(systemMessage, context);
     }
 

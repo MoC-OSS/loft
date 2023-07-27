@@ -3,17 +3,22 @@ import {
   CreateChatCompletionRequestType,
   SystemMessageType,
 } from '../schema/CreateChatCompletionRequestSchema';
+import { getLogger } from './../Logger';
+
+const l = getLogger('SystemMessageStorage');
 
 export class SystemMessageStorage {
   private client: Redis | Cluster;
 
   constructor(client: Redis | Cluster) {
+    l.info('SystemMessageStorage initialization...');
     this.client = client;
   }
 
   public async syncSystemMessages(
     data: CreateChatCompletionRequestType,
   ): Promise<void> {
+    l.info('syncing systemMessages to redis...');
     const existingNames: Set<string> = new Set();
     const pipeline = this.client.pipeline();
 
@@ -40,12 +45,14 @@ export class SystemMessageStorage {
     name: string,
   ): Promise<SystemMessageType | null> {
     try {
+      l.info(`getting systemMessage: ${name} from redis...`);
+
       const data = await this.client.get(name);
       if (data === null || data === undefined) return null;
 
       return JSON.parse(data ?? '');
     } catch (error) {
-      console.error(error);
+      l.error(error);
       throw error;
     }
   }
@@ -54,10 +61,12 @@ export class SystemMessageStorage {
     name: string,
     newSystemMessage: string,
   ): Promise<void> {
+    l.info(`updating systemMessage: ${name} in redis...`);
     await this.client.set(name, newSystemMessage);
   }
 
   public async deleteSystemMessageByName(name: string): Promise<void> {
+    l.info(`deleting systemMessage: ${name} from redis...`);
     await this.client.del(name);
   }
 }

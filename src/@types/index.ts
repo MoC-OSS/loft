@@ -36,8 +36,9 @@ export interface InputData {
   intent?: string;
 }
 export interface InputContext {
-  message: string;
   sessionId: string;
+  systemMessageName: string;
+  message: string;
 }
 
 export interface OutputContext {

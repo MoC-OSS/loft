@@ -7,7 +7,6 @@ import {
 import {
   AsyncLLMInputMiddleware,
   AsyncLLMOutputMiddleware,
-  ChatCompletionMessage,
   Config,
   InputContext,
   InputData,
@@ -34,6 +33,9 @@ import { getTimestamp, sanitizeAndValidateRedisKey } from './helpers';
 import { Session } from './session/Session';
 import { FunctionManager, OpenAiFunction } from './FunctionManager';
 import { Message } from './session/Message';
+import { getLogger } from './Logger';
+
+const l = getLogger('ChatCompletion');
 
 export enum ChatCompletionCallInitiator {
   main_flow = 'MAIN_FLOW',
@@ -46,6 +48,7 @@ export class ChatCompletion {
   private readonly eventManager: EventManager;
   private readonly llmIOManager: LlmIOManager;
   private readonly fnManager: FunctionManager;
+  private errorHandler: ErrorHandler;
   private readonly openai: OpenAIApi;
 
   private readonly completionQueue!: Queue;
@@ -59,7 +62,13 @@ export class ChatCompletion {
     private readonly ps: PromptService,
     private readonly hs: SessionStorage,
   ) {
-    this.eventManager = new EventManager(this.hs);
+    this.errorHandler = async () => {
+      l.error(
+        'Error occurred in ChatCompletion class, but no ErrorHandler defined. Please define using useErrorHandler(err): Promise<void> to receive the error and session data.',
+      );
+    };
+
+    this.eventManager = new EventManager(this.hs, this.errorHandler);
     this.llmIOManager = new LlmIOManager();
     this.fnManager = new FunctionManager();
     this.openai = new OpenAIApi(
@@ -68,6 +77,7 @@ export class ChatCompletion {
       }),
     );
 
+    l.info('ChatCompletion: completionQueue initialization...');
     this.completionQueue = new Queue('chatCompletionQueue', {
       connection: {
         host: this.cfg.redisHost,
@@ -76,6 +86,7 @@ export class ChatCompletion {
       },
     });
 
+    l.info('ChatCompletion: completionWorker definition...');
     this.completionWorker = new Worker(
       'chatCompletionQueue',
       async (job) => this.chatCompletionBeginProcessor(job),
@@ -90,6 +101,7 @@ export class ChatCompletion {
       },
     );
 
+    l.info('ChatCompletion: llmApiCallQueue initialization...');
     this.llmApiCallQueue = new Queue('llmApiCallQueue', {
       connection: {
         host: this.cfg.redisHost,
@@ -98,6 +110,7 @@ export class ChatCompletion {
       },
     });
 
+    l.info('ChatCompletion: llmApiCallWorker definition...');
     this.llmApiCallWorker = new Worker(
       'llmApiCallQueue',
       async (job) => this.chatCompletionCallProcessor(job),
@@ -117,9 +130,8 @@ export class ChatCompletion {
       },
     );
 
-    this.completionWorker.on('error', (error) => {
-      console.log(error);
-    });
+    this.completionWorker.on('error', this.errorHandler);
+    this.llmApiCallWorker.on('error', this.errorHandler);
   }
 
   public static async createInstance(
@@ -128,20 +140,31 @@ export class ChatCompletion {
     ps: PromptService,
     hs: SessionStorage,
   ): Promise<ChatCompletion> {
+    l.info('Creating ChatCompletion instance...');
     const instance = new ChatCompletion(cfg, sms, ps, hs);
     await instance.initialize();
     return instance;
   }
 
   private async initialize(): Promise<void> {
+    l.info('Initializing ChatCompletion instance...');
+    l.info('Syncing system messages and prompts...');
     await this.syncSystemMessagesAndPrompts();
+    l.info('Starting chatCompletionBeginProcessor worker...');
     this.completionWorker.run(); // run the worker after sync systemMessages
+    l.info('Starting chatCompletionCallProcessor worker...');
     this.llmApiCallWorker.run();
+    l.info('ChatCompletion instance initialized successfully!');
   }
 
   public async chatCompletion(data: InputData) {
     try {
+      l.info(
+        `chatCompletion: received input with sessionId: ${data.sessionId}`,
+      );
+      l.info(`chatCompletion: validating input...`);
       const chatData = ChatCompletionInputSchema.parse(data);
+      l.info(`chatCompletion: creating job key...`);
       const jobKey = sanitizeAndValidateRedisKey(
         `app:${
           this.cfg.appName
@@ -149,12 +172,17 @@ export class ChatCompletion {
           chatData.sessionId
         }:system_message:${chatData.systemMessageName}:time:${getTimestamp()}`,
       );
+      l.info(`chatCompletion: job key created: ${jobKey}`);
+      l.info(`chatCompletion: adding job to queue...`);
       await this.completionQueue.add(jobKey, chatData, {
         removeOnComplete: true,
         attempts: this.cfg.jobsAttentions,
       });
     } catch (error) {
-      console.log(error);
+      l.error(
+        `Error occurred in ChatCompletion class when calling chatCompletion method: `,
+        error,
+      );
     }
   }
 
@@ -166,6 +194,10 @@ export class ChatCompletion {
     messageRole: ChatCompletionRequestMessageRoleEnum = 'user',
   ) {
     const { sessionId, systemMessageName } = session;
+
+    l.info(
+      `injecting prompt: ${promptName}, sessionId: ${sessionId}, systemMessageName: ${systemMessageName}`,
+    );
 
     if (!(await this.hs.isExists(sessionId, systemMessageName)))
       throw new Error("inject prompt failed: sessionId doesn't exist");
@@ -181,6 +213,7 @@ export class ChatCompletion {
     const processedInputContext =
       await this.llmIOManager.executeInputMiddlewareChain({
         sessionId,
+        systemMessageName,
         message,
       });
     const newMessage = new Message({
@@ -250,6 +283,7 @@ export class ChatCompletion {
       const processedInputContext =
         await this.llmIOManager.executeInputMiddlewareChain({
           sessionId,
+          systemMessageName,
           message,
         });
 
@@ -282,7 +316,7 @@ export class ChatCompletion {
         newOutputContext: undefined,
       };
     } catch (error) {
-      console.log(error);
+      l.error(error);
 
       return {
         status: MiddlewareStatus.STOP,
@@ -313,7 +347,7 @@ export class ChatCompletion {
   }
 
   useErrorHandler(eventHandler: ErrorHandler) {
-    this.eventManager.useError(eventHandler);
+    this.errorHandler = eventHandler;
   }
 
   useEventHandler(name: string, eventHandler: EventHandler) {
@@ -463,7 +497,7 @@ export class ChatCompletion {
         initiator,
       });
     } catch (error) {
-      console.log(error);
+      l.error(error);
       throw error;
     }
   }
@@ -471,10 +505,16 @@ export class ChatCompletion {
   private async chatCompletionBeginProcessor(job: Job | { data: InputData }) {
     try {
       const { systemMessageName, sessionId } = job.data;
+      l.info(
+        `chatCompletionBeginProcessor: begin processing input middlewares for sessionId: ${sessionId}`,
+      );
       const { message: processedMessage } =
         await this.llmIOManager.executeInputMiddlewareChain(
           job.data as InputContext,
         );
+      l.info(
+        `chatCompletionBeginProcessor: end processing input middlewares for sessionId: ${sessionId}`,
+      );
 
       const newMessage = new Message({
         role: 'user',
@@ -528,7 +568,7 @@ export class ChatCompletion {
         },
       );
     } catch (error) {
-      console.log(error);
+      l.error(error);
       throw error;
     }
   }

@@ -1,6 +1,10 @@
 import { SessionStorage } from './session/SessionStorage';
 import { OutputContext } from './@types';
 import { Session } from './session/Session';
+import { ChatCompletionCallInitiator } from './ChatCompletion';
+import { getLogger } from './Logger';
+
+const l = getLogger('EventManager');
 
 export type EventDetector = (
   response: OutputContext,
@@ -21,8 +25,8 @@ export interface EventHandler {
 
 export type DefaultHandler = (response: OutputContext) => Promise<void>;
 export type ErrorHandler = (
-  response: OutputContext,
   error: Error,
+  response?: OutputContext | undefined,
 ) => Promise<void>;
 
 export interface TriggeredEvent {
@@ -33,21 +37,19 @@ export interface TriggeredEvent {
 export class EventManager {
   private eventHandlers: Map<string, EventHandler>;
   private defaultEventHandler: DefaultHandler;
-  private errorHandler: ErrorHandler;
 
-  constructor(private readonly sessionStorage: SessionStorage) {
-    this.defaultEventHandler = () => {
-      console.error(
-        'No Default Event Handler defined. Please define using useDefaultHandler(response: string): Promise<void>',
+  constructor(
+    private readonly sessionStorage: SessionStorage,
+    private errorHandler: ErrorHandler,
+  ) {
+    l.info('EventManager initialization...');
+
+    this.defaultEventHandler = async () => {
+      l.error(
+        'LLM Event not detected. Library try to continue with DefaultEventHandler, but it is not defined. Please define using useDefaultHandler(response: string): Promise<void> to receive the response.',
       );
-      process.exit(1);
     };
-    this.errorHandler = () => {
-      console.error(
-        'No ErrorHandler defined. Please define using useErrorHandler(err): Promise<void>',
-      );
-      process.exit(1);
-    };
+
     this.eventHandlers = new Map();
   }
 
@@ -67,14 +69,16 @@ export class EventManager {
       eventHandler.priority = 0; // default value
     }
 
+    l.info(
+      `Registered event handler with the name "${name}". Priority: ${eventHandler.priority}. Max Loops: ${eventHandler.maxLoops}.`,
+    );
+
     this.eventHandlers.set(name, eventHandler);
   }
 
   useDefault(eventHandler: DefaultHandler) {
+    l.info(`Registered default event handler.`);
     this.defaultEventHandler = eventHandler;
-  }
-  useError(eventHandler: ErrorHandler) {
-    this.errorHandler = eventHandler;
   }
 
   async executeEventHandlers(response: OutputContext): Promise<void> {
@@ -94,7 +98,7 @@ export class EventManager {
             triggeredEvents.push({ name, priority: eventHandler.priority });
           }
         } catch (error) {
-          console.error(
+          l.error(
             `Error occurred in eventDetector of event handler ${name}: ${error}`,
           );
           throw error;
@@ -116,11 +120,12 @@ export class EventManager {
           try {
             // tracking the number of times an event handler is called
             const { sessionId, systemMessageName } = response.session;
-            await this.sessionStorage.incrementHandlerCount(
-              sessionId,
-              systemMessageName,
-              name,
-            );
+            if (response.initiator === ChatCompletionCallInitiator.call_again)
+              await this.sessionStorage.incrementHandlerCount(
+                sessionId,
+                systemMessageName,
+                name,
+              );
             response.session = await this.sessionStorage.getSession(
               sessionId,
               systemMessageName,
@@ -128,26 +133,23 @@ export class EventManager {
 
             // over-loop handler prevention
             const { handlersCount } = response.session;
-            if (handlersCount[name] >= eventHandler.maxLoops + 1)
+            if (handlersCount[name] >= eventHandler.maxLoops)
               return this.errorHandler(
-                response,
                 new Error(
                   `Max Loops Reached, handler: ${name}, maxLoops: ${eventHandler.maxLoops}, counted maxLoops: ${handlersCount[name]}. Please check your event handlers or if your flow requires it, increase maxLoops property of the event handler to a higher value.`,
                 ),
+                response,
               );
 
             await eventHandler.handler(response, () => Promise.resolve());
           } catch (error) {
-            console.error(
-              `Error occurred in handler of event handler ${name}: `,
-              error,
-            );
+            this.errorHandler(error as Error, response);
             throw error;
           }
         }
       }
     } catch (error) {
-      console.error(`Error occurred while executing event handlers: ${error}`);
+      l.error(`Error occurred while executing event handlers: ${error}`);
     }
   }
 }
