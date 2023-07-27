@@ -20,6 +20,7 @@ export declare class ChatCompletion {
     private readonly eventManager;
     private readonly llmIOManager;
     private readonly fnManager;
+    private errorHandler;
     private readonly openai;
     private readonly completionQueue;
     private readonly completionWorker;

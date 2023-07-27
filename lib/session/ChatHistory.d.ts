@@ -1,10 +1,11 @@
 import { ChatCompletionMessage } from '../@types';
 import { Message } from './Message';
 import { QueryByArrayOfObjects } from './QueryByArrayOfInstance';
-import { SessionStorage } from './SessionStorage';
 export declare class ChatHistory extends QueryByArrayOfObjects<Message> {
-    private readonly hs;
-    constructor(hs: SessionStorage, ...items: Message[]);
+    private readonly sessionId;
+    private readonly systemMessageName;
+    constructor(sessionId: string, systemMessageName: string, ...items: Message[]);
+    private logPrefix;
     append(message: Message): void;
     updateById(id: string, newData: Partial<Message>): void;
     archiveById(id: string): void;

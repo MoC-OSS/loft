@@ -9,20 +9,19 @@ export interface EventHandler {
     maxLoops: number;
 }
 export type DefaultHandler = (response: OutputContext) => Promise<void>;
-export type ErrorHandler = (response: OutputContext, error: Error) => Promise<void>;
+export type ErrorHandler = (error: Error, response?: OutputContext | undefined) => Promise<void>;
 export interface TriggeredEvent {
     name: string;
     priority: number;
 }
 export declare class EventManager {
     private readonly sessionStorage;
+    private errorHandler;
     private eventHandlers;
     private defaultEventHandler;
-    private errorHandler;
-    constructor(sessionStorage: SessionStorage);
+    constructor(sessionStorage: SessionStorage, errorHandler: ErrorHandler);
     use(name: string, eventHandler: EventHandler): void;
     useDefault(eventHandler: DefaultHandler): void;
-    useError(eventHandler: ErrorHandler): void;
     executeEventHandlers(response: OutputContext): Promise<void>;
 }
 //# sourceMappingURL=EventManager.d.ts.map
