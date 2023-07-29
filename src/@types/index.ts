@@ -8,12 +8,13 @@ import { PromptType } from '../schema/PromptSchema';
 import { Session } from '../session/Session';
 import { ChatCompletionCallInitiator } from '../ChatCompletion';
 import { ChatHistory } from '../session/ChatHistory';
+import { Message } from '../session/Message';
 
 export interface ChatCompletionMessage
   extends ChatCompletionRequestMessage,
     ChatCompletionResponseMessage {}
 
-export interface SessionData {
+export interface SessionProps {
   sessionId: string;
   systemMessageName: string;
   modelPreset: SystemMessageType['modelPreset'];
@@ -26,19 +27,21 @@ export interface SessionData {
   };
   handlersCount: Record<string, number>;
   ctx: Record<string, unknown>;
+  messageAccumulator: Message[] | null;
   createdAt: number;
   updatedAt: number;
+  lastError: string | null;
 }
-export interface InputData {
+export interface InputPayload {
   systemMessageName: string;
-  message: string;
+  messages: Message | Message[];
   sessionId: string;
-  intent?: string;
 }
-export interface InputContext {
+
+export interface ChatInputPayload {
   sessionId: string;
   systemMessageName: string;
-  message: string;
+  messages: Message[];
 }
 
 export interface OutputContext {
@@ -47,7 +50,7 @@ export interface OutputContext {
   llmResponse?: CreateChatCompletionResponse;
 }
 
-export type IOContext = InputContext | OutputContext;
+export type IOContext = ChatInputPayload | OutputContext;
 
 export interface Config {
   nodeEnv: string;
@@ -77,8 +80,8 @@ export interface Config {
     concurrency: number;
   };
   jobsLockDuration: number; // in milliseconds
-  jobsAttentions: number;
-  chatCompletionJobCallAttentions: number;
+  jobsAttempts: number;
+  chatCompletionJobCallAttempts: number;
 }
 
 export enum MiddlewareStatus {
@@ -89,8 +92,8 @@ export enum MiddlewareStatus {
 }
 
 export type AsyncLLMInputMiddleware = (
-  context: InputContext,
-  next: (input: InputContext) => Promise<void>,
+  context: ChatInputPayload,
+  next: (input: ChatInputPayload) => Promise<void>,
 ) => Promise<void>;
 
 export type AsyncLLMOutputMiddleware = (
@@ -106,14 +109,14 @@ export type LLMOutputMiddlewares = Map<string, AsyncLLMOutputMiddleware>;
 
 export type SystemMessageComputer = (
   input: SystemMessageType,
-  context: InputData,
+  context: InputPayload,
 ) => Promise<SystemMessageType>;
 
 export type SystemMessageComputers = Map<string, SystemMessageComputer>;
 
 export type PromptComputer = (
   input: PromptType,
-  context: SessionData,
+  context: SessionProps,
 ) => Promise<PromptType>;
 
 export type PromptComputers = Map<string, PromptComputer>;

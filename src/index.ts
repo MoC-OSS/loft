@@ -1,4 +1,3 @@
-import { Message } from './session/Message';
 export { ChatCompletion } from './ChatCompletion';
 export { EventHandler } from './EventManager';
 export { SystemMessageService } from './systemMessage/SystemMessageService';
@@ -13,10 +12,10 @@ export { Session } from './session/Session';
 export {
   Config,
   SystemMessageComputer,
-  InputContext,
   OutputContext,
-  InputData,
-  SessionData,
+  InputPayload,
+  SessionProps,
+  ChatInputPayload,
 } from './@types/index';
 export { Message } from './session/Message';
 export { ChatHistory } from './session/ChatHistory';

@@ -1,7 +1,7 @@
 import {
   AsyncLLMInputMiddleware,
   AsyncLLMOutputMiddleware,
-  InputContext,
+  ChatInputPayload,
   LLMInputMiddlewares,
   LLMOutputMiddlewares,
   MiddlewareStatus,
@@ -44,19 +44,19 @@ export class LlmIOManager {
   }
 
   async executeInputMiddlewareChain(
-    inputContext: InputContext,
-  ): Promise<InputContext> {
+    inputContext: ChatInputPayload,
+  ): Promise<ChatInputPayload> {
     const { sessionId, systemMessageName } = inputContext;
     l.info(
       `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} - Executing input middleware chain`,
     );
     let middlewaresIterator = this.llmInputMiddlewareChain.entries();
     let currentMiddlewareEntry = middlewaresIterator.next();
-    let modifiedContext: InputContext = { ...inputContext };
+    let modifiedContext: ChatInputPayload = { ...inputContext };
 
     try {
       const next = async (
-        modifiedInputContext: InputContext,
+        modifiedInputContext: ChatInputPayload,
       ): Promise<void> => {
         if (currentMiddlewareEntry.done) return;
         let [name, middleware] = currentMiddlewareEntry.value;
@@ -68,7 +68,7 @@ export class LlmIOManager {
           );
           await middleware(
             modifiedInputContext,
-            (nextInputContext: InputContext) => {
+            (nextInputContext: ChatInputPayload) => {
               modifiedContext = { ...nextInputContext };
               return next(modifiedContext);
             },

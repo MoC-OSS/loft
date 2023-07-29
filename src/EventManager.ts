@@ -25,8 +25,15 @@ export interface EventHandler {
 
 export type DefaultHandler = (response: OutputContext) => Promise<void>;
 export type ErrorHandler = (
-  error: Error,
-  response?: OutputContext | undefined,
+  error: Error | unknown,
+  response?:
+    | Partial<OutputContext>
+    | {
+        initiator: ChatCompletionCallInitiator;
+        sessionId: Session['sessionId'];
+        systemMessageName: Session['systemMessageName'];
+      }
+    | undefined,
 ) => Promise<void>;
 
 export interface TriggeredEvent {

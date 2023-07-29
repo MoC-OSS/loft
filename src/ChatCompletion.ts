@@ -7,13 +7,13 @@ import {
 import {
   AsyncLLMInputMiddleware,
   AsyncLLMOutputMiddleware,
+  ChatInputPayload,
   Config,
-  InputContext,
-  InputData,
+  InputPayload,
   MiddlewareStatus,
   OutputContext,
   PromptComputer,
-  SessionData,
+  SessionProps,
   SystemMessageComputer,
 } from './@types/index';
 import { Job, Queue, Worker } from 'bullmq';
@@ -113,7 +113,7 @@ export class ChatCompletion {
     l.info('ChatCompletion: llmApiCallWorker definition...');
     this.llmApiCallWorker = new Worker(
       'llmApiCallQueue',
-      async (job) => this.chatCompletionCallProcessor(job),
+      async (job: Job) => this.chatCompletionCallProcessor(job),
       {
         limiter: {
           max: this.cfg.openAiRateLimiter.max,
@@ -157,7 +157,7 @@ export class ChatCompletion {
     l.info('ChatCompletion instance initialized successfully!');
   }
 
-  public async chatCompletion(data: InputData) {
+  public async call(data: InputPayload) {
     try {
       l.info(
         `chatCompletion: received input with sessionId: ${data.sessionId}`,
@@ -176,7 +176,7 @@ export class ChatCompletion {
       l.info(`chatCompletion: adding job to queue...`);
       await this.completionQueue.add(jobKey, chatData, {
         removeOnComplete: true,
-        attempts: this.cfg.jobsAttentions,
+        attempts: this.cfg.jobsAttempts,
       });
     } catch (error) {
       l.error(
@@ -189,9 +189,8 @@ export class ChatCompletion {
   async injectPromptAndSend(
     promptName: string,
     session: Session,
-    message: string,
+    messages: Message[],
     promptRole: ChatCompletionRequestMessageRoleEnum = 'user',
-    messageRole: ChatCompletionRequestMessageRoleEnum = 'user',
   ) {
     const { sessionId, systemMessageName } = session;
 
@@ -214,12 +213,8 @@ export class ChatCompletion {
       await this.llmIOManager.executeInputMiddlewareChain({
         sessionId,
         systemMessageName,
-        message,
+        messages,
       });
-    const newMessage = new Message({
-      role: messageRole,
-      content: processedInputContext.message,
-    });
 
     const lastPrompt = prevSession.messages[prevSession.messages.length - 2];
     const lastUserMessage =
@@ -227,7 +222,9 @@ export class ChatCompletion {
     const ifLastPromptIsLikeCurrentPrompt =
       lastPrompt.content === promptData.prompt;
     const ifLastUserMessageIsLikeCurrentUserMessage =
-      lastUserMessage.content === processedInputContext.message;
+      lastUserMessage.content ===
+      processedInputContext.messages[processedInputContext.messages.length - 1]
+        .content;
     const isHistoryDuplicate =
       ifLastPromptIsLikeCurrentPrompt &&
       ifLastUserMessageIsLikeCurrentUserMessage;
@@ -246,8 +243,11 @@ export class ChatCompletion {
       throw error;
     }
 
-    await this.hs.appendMessages(sessionId, systemMessageName, [userPrompt]);
-    await this.hs.appendMessages(sessionId, systemMessageName, [newMessage]);
+    await this.hs.appendMessages(sessionId, systemMessageName, [
+      userPrompt,
+      ...processedInputContext.messages,
+    ]);
+    // await this.hs.appendMessages(sessionId, systemMessageName, [newMessage]);
     const newSession = await this.hs.getSession(sessionId, systemMessageName);
 
     const jobKey = sanitizeAndValidateRedisKey(
@@ -258,71 +258,61 @@ export class ChatCompletion {
     await this.llmApiCallQueue.add(
       jobKey,
       { session: newSession },
-      { attempts: this.cfg.chatCompletionJobCallAttentions },
+      { attempts: this.cfg.chatCompletionJobCallAttempts },
     );
   }
 
-  /* 
-  callAgain is a helper function that allows you to send a new message to the LLM instead of last message in the history
-  callAgain returns a Promise<{ status: MiddlewareStatus.CALL_AGAIN, newOutputContext: null };> if successful
-  returned by callAgain status: MiddlewareStatus.CALL_AGAIN will interrupt the middleware chain and handlers, after that send the new message to the LLM Queue
+  /**
+   * Use this method when you need to call LLM API again OR after error to continue chat flow.
+   * AND only if last message at ChatHistory is user role
+   *
+   * @param sessionId
+   * @param systemMessageName
    */
-  public async callAgain(
-    session: Session,
-    message: string,
-    role: ChatCompletionRequestMessageRoleEnum = 'user',
+  async callRetry(
+    sessionId: Session['sessionId'],
+    systemMessageName: string,
   ): Promise<{
     status?: MiddlewareStatus;
     newOutputContext: OutputContext | undefined;
   }> {
-    try {
-      const { sessionId, systemMessageName } = session;
-      if (!(await this.hs.isExists(sessionId, systemMessageName)))
-        throw new Error("inject prompt failed: sessionId doesn't exist");
+    let session = await this.hs.getSession(sessionId, systemMessageName);
 
-      const processedInputContext =
-        await this.llmIOManager.executeInputMiddlewareChain({
-          sessionId,
-          systemMessageName,
-          message,
-        });
-
-      const newMessage: ChatCompletionRequestMessage = {
-        content: processedInputContext.message,
-        role,
-      };
-
-      this.hs.replaceLastUserMessage(
-        sessionId,
-        systemMessageName,
-        newMessage,
-        role,
+    if (
+      session.messages[session.messages.length - 1].role !==
+        ChatCompletionRequestMessageRoleEnum.User ||
+      session.messages[session.messages.length - 1].role !==
+        ChatCompletionRequestMessageRoleEnum.Function
+    ) {
+      throw new Error(
+        `Last message in history is not "user" or "function" role,
+        callRetry() is not recommended to use in this case.
+        Because it can cause unexpected behavior, or corrupt the history.
+        Please fix session.messages and call callRetry() again.
+        Or use call() method with user message instead.`,
       );
-      const newSession = await this.hs.getSession(sessionId, systemMessageName);
-
-      const jobKey = sanitizeAndValidateRedisKey(
-        `app:${
-          this.cfg.appName
-        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:call_again:session:${sessionId}:system_message:${systemMessageName}:time:${getTimestamp()}`,
-      );
-      await this.llmApiCallQueue.add(
-        jobKey,
-        { session: newSession },
-        { attempts: this.cfg.chatCompletionJobCallAttentions },
-      );
-
-      return {
-        status: MiddlewareStatus.CALL_AGAIN,
-        newOutputContext: undefined,
-      };
-    } catch (error) {
-      l.error(error);
-
-      return {
-        status: MiddlewareStatus.STOP,
-        newOutputContext: undefined,
-      };
     }
+
+    if (session.lastError) {
+      session.lastError = null;
+      session = await this.hs.save(session);
+    }
+
+    const jobKey = sanitizeAndValidateRedisKey(
+      `app:${
+        this.cfg.appName
+      }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:call_again:session:${sessionId}:system_message:${systemMessageName}:time:${getTimestamp()}`,
+    );
+    await this.llmApiCallQueue.add(
+      jobKey,
+      { session: session },
+      { attempts: this.cfg.chatCompletionJobCallAttempts },
+    );
+
+    return {
+      status: MiddlewareStatus.CALL_AGAIN,
+      newOutputContext: undefined,
+    };
   }
 
   async deleteSessionsById(sessionId: string) {
@@ -411,7 +401,7 @@ export class ChatCompletion {
         },
         {
           removeOnComplete: true,
-          attempts: this.cfg.chatCompletionJobCallAttentions,
+          attempts: this.cfg.chatCompletionJobCallAttempts,
         },
       );
 
@@ -442,15 +432,17 @@ export class ChatCompletion {
     return initiator as ChatCompletionCallInitiator;
   }
 
-  private async chatCompletionCallProcessor(
-    job: Job | { name: string; data: { session: SessionData } },
-  ) {
+  private async chatCompletionCallProcessor(job: Job<SessionProps>) {
+    let session = new Session(this.hs, job.data);
+    const { sessionId, systemMessageName, messages, modelPreset } = session;
+    const logPrefix = `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} -`;
+    l.info(`${logPrefix} getting chat completion initiator name...`);
+    let initiator = this.getChatCompletionInitiatorName(job.name);
+
     try {
-      let session = new Session(this.hs, job.data.session);
-      const { sessionId, systemMessageName, messages, modelPreset } = session;
+      l.info(`${logPrefix} chat completion initiator name: ${initiator}`);
 
-      let initiator = this.getChatCompletionInitiatorName(job.name);
-
+      l.info(`${logPrefix} getting chat completion LLM response...`);
       const chatCompletion = await this.openai.createChatCompletion({
         ...session.modelPreset,
         messages: session.messages.formatToOpenAi(),
@@ -459,9 +451,10 @@ export class ChatCompletion {
       const ccm = chatCompletion.data.choices[0].message; // ccm = chat completion message (response)
       if (ccm === undefined) throw new Error('LLM API response is empty');
 
+      l.info(`${logPrefix} executing output middlewares...`);
       let [status, outputContext] =
         await this.llmIOManager.executeOutputMiddlewareChain({
-          session: job.data.session,
+          session: session,
           llmResponse: chatCompletion.data,
           initiator,
         });
@@ -473,13 +466,22 @@ export class ChatCompletion {
       if (
         status === MiddlewareStatus.CALL_AGAIN ||
         status === MiddlewareStatus.STOP
-      )
+      ) {
+        l.info(`${logPrefix} middleware status: ${status}, job canceled.`);
         return;
+      }
 
       // Function result will be added to history and added to queue llmApiCallQueue.
       // After that, the execution of this job will be canceled.
-      if (modelPreset.function_call === 'auto')
-        if (await this.callFunction(chatCompletion.data, outputContext)) return;
+      if (modelPreset.function_call === 'auto') {
+        l.info(
+          `${logPrefix} modelPreset.function_call: auto, calling function...`,
+        );
+        if (await this.callFunction(chatCompletion.data, outputContext)) {
+          l.info(`${logPrefix} function called, job canceled.`);
+          return;
+        } else l.info(`${logPrefix} function not called. Continue...`);
+      }
 
       const llmResponse = outputContext.llmResponse?.choices[0].message;
       if (!llmResponse)
@@ -491,57 +493,141 @@ export class ChatCompletion {
       ]);
       session = await this.hs.getSession(sessionId, systemMessageName);
 
+      l.info(`${logPrefix} executing event handlers...`);
       await this.eventManager.executeEventHandlers({
         ...outputContext,
         session,
         initiator,
       });
+      l.info(`${logPrefix} event handlers executed successfully!`);
+
+      await this.releaseAccToChatQueue(
+        session.sessionId,
+        session.systemMessageName,
+      );
     } catch (error) {
       l.error(error);
+      l.error(
+        `${logPrefix} check attempts... jobAttempts: ${job.opts.attempts}, `,
+      );
+      if (
+        job.opts.attempts &&
+        job.opts.attempts >= this.cfg.chatCompletionJobCallAttempts
+      ) {
+        await this.errorHandler(error, { initiator, session });
+      }
       throw error;
     }
   }
 
-  private async chatCompletionBeginProcessor(job: Job | { data: InputData }) {
+  releaseAccToChatQueue = async (
+    sessionId: Session['sessionId'],
+    systemMessageName: Session['systemMessageName'],
+  ) => {
+    const logPrefix = `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} -`;
+    const session = await this.hs.getSession(sessionId, systemMessageName);
     try {
-      const { systemMessageName, sessionId } = job.data;
-      l.info(
-        `chatCompletionBeginProcessor: begin processing input middlewares for sessionId: ${sessionId}`,
-      );
-      const { message: processedMessage } =
-        await this.llmIOManager.executeInputMiddlewareChain(
-          job.data as InputContext,
+      l.info(`${logPrefix} checking and handling messageAccumulator...`);
+
+      if (session.messageAccumulator && session.messageAccumulator.length > 0) {
+        l.info(`chatCompletion: creating job key...`);
+
+        const jobKey = sanitizeAndValidateRedisKey(
+          `app:${
+            this.cfg.appName
+          }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_begin_processor:intent:processing_new_or_existing_session:session:${
+            session.sessionId
+          }:system_message:${session.systemMessageName}:time:${getTimestamp()}`,
         );
-      l.info(
-        `chatCompletionBeginProcessor: end processing input middlewares for sessionId: ${sessionId}`,
-      );
+        l.info(`chatCompletion: job key created: ${jobKey}`);
+        l.info(`chatCompletion: adding job to queue...`);
 
-      const newMessage = new Message({
-        role: 'user',
-        content: processedMessage,
-      });
+        await this.completionQueue.add(
+          jobKey,
+          {
+            sessionId,
+            systemMessageName,
+            messages: session.messageAccumulator,
+          },
+          {
+            removeOnComplete: true,
+            attempts: this.cfg.jobsAttempts,
+          },
+        );
+      }
+    } catch (error) {
+      l.error(error);
+      throw error;
+    }
+  };
 
+  private async chatCompletionBeginProcessor(job: Job<ChatInputPayload>) {
+    const { systemMessageName, sessionId } = job.data;
+    const logPrefix = `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} -`;
+    try {
+      l.info(`${logPrefix} begin processing input middlewares`);
+      const { messages: processedMessages } =
+        await this.llmIOManager.executeInputMiddlewareChain(
+          job.data as ChatInputPayload,
+        );
+      l.info(`${logPrefix} end processing input middlewares`);
+      l.info(`${logPrefix} checking session exists...`);
       if (await this.hs.isExists(sessionId, systemMessageName)) {
-        await this.hs.appendMessages(sessionId, systemMessageName, [
-          newMessage,
-        ]);
+        const session = await this.hs.getSession(sessionId, systemMessageName);
+
+        l.info(
+          `${logPrefix} session exists, checking if message accumulator exists...`,
+        );
+        if (session.messageAccumulator !== null || session.lastError !== null) {
+          l.info(
+            `${logPrefix} message accumulator exists, appending messages to accumulator...`,
+          );
+          await this.hs.appendMessagesToAccumulator(
+            sessionId,
+            systemMessageName,
+            processedMessages,
+            session,
+          );
+          l.info(`${logPrefix} messages appended to accumulator`);
+          if (session.lastError !== null) {
+            l.error(
+              `${logPrefix} session lastError exists, calling error handler... 
+              You must handle this error in your error handler. 
+              And call ChatCompletion.callRetry() to continue chat flow. 
+              In other case, chat flow will be interrupted.
+              And all new messages will be saved to session.messageAccumulator until ChatCompletion.callRetry() will be successfully finished.
+              And after that, all messages from session.messageAccumulator will be added to session.messages and chat flow will be continued.`,
+            );
+            await this.errorHandler(session.lastError, {
+              session,
+              initiator: ChatCompletionCallInitiator.main_flow,
+            });
+            l.info(`${logPrefix} error handler called, job finished.`);
+          }
+
+          return;
+        } else {
+          l.info(
+            `${logPrefix} message accumulator doesn't exist, appending messages to ChatHistory and creating empty accumulator...`,
+          );
+          await this.hs.appendMessages(
+            sessionId,
+            systemMessageName,
+            processedMessages,
+          );
+        }
       } else {
+        l.info(`${logPrefix} begin computing system message...`);
         const { systemMessage: computedSystemMessage, modelPreset } =
           await this.sms.computeSystemMessage(systemMessageName, job.data);
-
         const systemMessage = new Message({
           role: 'system',
           content: computedSystemMessage,
         });
 
-        await this.hs.createSession(
-          sessionId,
-          systemMessageName,
-          modelPreset,
+        await this.hs.createSession(sessionId, systemMessageName, modelPreset, [
           systemMessage,
-        );
-        await this.hs.appendMessages(sessionId, systemMessageName, [
-          newMessage,
+          ...processedMessages,
         ]);
       }
 
@@ -564,11 +650,21 @@ export class ChatCompletion {
         },
         {
           removeOnComplete: true,
-          attempts: this.cfg.chatCompletionJobCallAttentions,
+          attempts: this.cfg.chatCompletionJobCallAttempts,
         },
       );
     } catch (error) {
       l.error(error);
+      l.error(
+        `${logPrefix} check attempts... jobAttempts: ${job.opts.attempts}, `,
+      );
+      if (job.opts.attempts && job.opts.attempts >= this.cfg.jobsAttempts) {
+        await this.errorHandler(error, {
+          initiator: ChatCompletionCallInitiator.main_flow,
+          sessionId: job.data.sessionId,
+          systemMessageName: job.data.systemMessageName,
+        });
+      }
       throw error;
     }
   }

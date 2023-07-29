@@ -1,4 +1,4 @@
-import { SessionData } from './../@types';
+import { SessionProps } from './../@types';
 import { SessionStorage } from './SessionStorage';
 import {
   ChatCompletionRequestMessage,
@@ -7,10 +7,11 @@ import {
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { ChatHistory } from './ChatHistory';
 import { getLogger } from './../Logger';
+import { Message } from './Message';
 
 const l = getLogger('Session');
 
-export class Session implements SessionData {
+export class Session implements SessionProps {
   readonly sessionId: string;
   readonly systemMessageName: string;
   readonly modelPreset: SystemMessageType['modelPreset'];
@@ -23,12 +24,14 @@ export class Session implements SessionData {
   };
   handlersCount: Record<string, number>;
   public ctx: Record<string, unknown>;
+  messageAccumulator: Message[] | null;
   readonly createdAt: number;
   updatedAt: number;
+  lastError: string | null;
 
   constructor(
     private readonly sessionStorage: SessionStorage,
-    sessionData: SessionData,
+    sessionData: SessionProps,
   ) {
     this.sessionId = sessionData.sessionId;
     this.systemMessageName = sessionData.systemMessageName;
@@ -44,8 +47,10 @@ export class Session implements SessionData {
     this.lastMessageByRole = sessionData.lastMessageByRole;
     this.handlersCount = sessionData.handlersCount;
     this.ctx = sessionData.ctx;
+    this.messageAccumulator = sessionData.messageAccumulator || null;
     this.createdAt = sessionData.createdAt;
     this.updatedAt = sessionData.updatedAt;
+    this.lastError = sessionData.lastError;
   }
 
   private logPrefix(): string {
@@ -62,7 +67,7 @@ export class Session implements SessionData {
     this.sessionStorage.deleteSession(this.sessionId, this.systemMessageName);
   }
 
-  public toJSON(): SessionData {
+  public toJSON(): SessionProps {
     return {
       sessionId: this.sessionId,
       systemMessageName: this.systemMessageName,
@@ -71,8 +76,10 @@ export class Session implements SessionData {
       lastMessageByRole: this.lastMessageByRole,
       handlersCount: this.handlersCount,
       ctx: this.ctx,
+      messageAccumulator: this.messageAccumulator,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
+      lastError: this.lastError,
     };
   }
 }

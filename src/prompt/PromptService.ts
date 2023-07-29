@@ -1,9 +1,4 @@
-import {
-  InputContext,
-  PromptComputer,
-  PromptComputers,
-  SessionData,
-} from '../@types';
+import { PromptComputer, PromptComputers, SessionProps } from '../@types';
 import { S3Service } from '../S3Service';
 import { PromptType } from '../schema/PromptSchema';
 import { PromptStorage } from './PromptStorage';
@@ -39,7 +34,7 @@ export class PromptService {
 
   async computePrompt(
     promptName: string,
-    session: SessionData,
+    session: SessionProps,
   ): Promise<PromptType> {
     l.info(
       `sessionId: ${session.sessionId} - getting prompt: ${promptName} computer from map...`,

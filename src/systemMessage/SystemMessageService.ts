@@ -1,5 +1,5 @@
 import {
-  InputData,
+  InputPayload,
   SystemMessageComputer,
   SystemMessageComputers,
 } from '../@types';
@@ -40,7 +40,7 @@ export class SystemMessageService {
 
   async computeSystemMessage(
     systemMessageName: string,
-    context: InputData,
+    context: InputPayload,
   ): Promise<SystemMessageType> {
     l.info(`getting systemMessage: ${systemMessageName} computer from map...`);
     const systemMessageComputer =

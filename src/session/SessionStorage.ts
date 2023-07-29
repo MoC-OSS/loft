@@ -4,7 +4,7 @@ import {
   ChatCompletionRequestMessageRoleEnum,
   ChatCompletionResponseMessage,
 } from 'openai';
-import { SessionData } from '../@types';
+import { SessionProps } from '../@types';
 import { deepEqual, getTimestamp } from '../helpers';
 import { Session } from './Session';
 import { ChatHistory } from './ChatHistory';
@@ -45,8 +45,8 @@ export class SessionStorage {
   async createSession(
     sessionId: string,
     systemMessageName: string,
-    modelPreset: SessionData['modelPreset'],
-    message: Message,
+    modelPreset: SessionProps['modelPreset'],
+    messages: Message[],
   ): Promise<void> {
     const sessionKey = this.getChatCompletionSessionKey(
       sessionId,
@@ -58,17 +58,19 @@ export class SessionStorage {
       sessionId,
       systemMessageName,
       modelPreset,
-      messages: new ChatHistory(sessionId, systemMessageName, message),
+      messages: new ChatHistory(sessionId, systemMessageName, ...messages),
       lastMessageByRole: {
         user: null,
         assistant: null,
-        system: message,
+        system: messages[0],
         function: null,
       },
       handlersCount: {},
       ctx: {},
+      messageAccumulator: [],
       createdAt: timestamp,
       updatedAt: timestamp,
+      lastError: null,
     });
 
     await this.client.set(
@@ -103,6 +105,10 @@ export class SessionStorage {
         systemMessageName,
       );
 
+      if (!session.messageAccumulator) {
+        session.messageAccumulator = [];
+      }
+
       await this.client.set(
         sessionKey,
         JSON.stringify(session),
@@ -113,6 +119,35 @@ export class SessionStorage {
       l.error(error);
       throw error;
     }
+  }
+
+  async appendMessagesToAccumulator(
+    sessionId: string,
+    systemMessageName: string,
+    newMessages: Message[],
+    session?: Session,
+  ): Promise<void> {
+    if (!session) {
+      session = await this.getSession(sessionId, systemMessageName);
+    }
+
+    if (!session.messageAccumulator) {
+      session.messageAccumulator = [];
+    }
+
+    session.messageAccumulator.push(...newMessages);
+
+    const sessionKey = this.getChatCompletionSessionKey(
+      sessionId,
+      systemMessageName,
+    );
+
+    await this.client.set(
+      sessionKey,
+      JSON.stringify(session),
+      'EX',
+      this.sessionTtl,
+    );
   }
 
   async replaceLastUserMessage(
@@ -212,6 +247,9 @@ export class SessionStorage {
       deepEqual(existingSession.ctx, session.ctx) &&
       deepEqual(existingSession.messages, session.messages)
     ) {
+      l.warn(
+        `sessionId ${session.sessionId}, systemMessageName: ${session.systemMessageName} - session not changed, skip save and return existing session`,
+      );
       return existingSession;
     }
 
@@ -223,11 +261,13 @@ export class SessionStorage {
 
     existingSession.ctx = session.ctx;
     existingSession.updatedAt = getTimestamp();
+    existingSession.lastError = session.lastError;
 
     const sessionKey = this.getChatCompletionSessionKey(
       session.sessionId,
       session.systemMessageName,
     );
+
     await this.client.set(
       sessionKey,
       JSON.stringify(existingSession),
@@ -242,21 +282,26 @@ export class SessionStorage {
     sessionId: string,
     systemMessageName: string,
   ): Promise<Session> {
-    l.info(
-      `Get session: ${sessionId}, systemMessageName: ${systemMessageName}`,
-    );
-    const sessionKey = this.getChatCompletionSessionKey(
-      sessionId,
-      systemMessageName,
-    );
-    const sessionData = await this.client.get(sessionKey);
-    if (!sessionData) {
-      throw new Error(`Session ${sessionId} not found`);
+    try {
+      l.info(
+        `Get session: ${sessionId}, systemMessageName: ${systemMessageName}`,
+      );
+      const sessionKey = this.getChatCompletionSessionKey(
+        sessionId,
+        systemMessageName,
+      );
+      const sessionData = await this.client.get(sessionKey);
+      if (!sessionData) {
+        throw new Error(`Session ${sessionId} not found`);
+      }
+
+      const SessionData = JSON.parse(sessionData) as SessionProps;
+      const session = new Session(this, SessionData);
+
+      return session;
+    } catch (error) {
+      l.error(error);
+      throw error;
     }
-
-    const SessionData = JSON.parse(sessionData) as SessionData;
-    const session = new Session(this, SessionData);
-
-    return session;
   }
 }
