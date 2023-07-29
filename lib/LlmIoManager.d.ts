@@ -1,4 +1,4 @@
-import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, InputContext, OutputContext } from './@types';
+import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, ChatInputPayload, OutputContext } from './@types';
 export type InputMiddlewareContext = {
     message: string;
 };
@@ -8,7 +8,7 @@ export declare class LlmIOManager {
     constructor();
     useInput(name: string, middleware: AsyncLLMInputMiddleware): void;
     useOutput(name: string, middleware: AsyncLLMOutputMiddleware): void;
-    executeInputMiddlewareChain(inputContext: InputContext): Promise<InputContext>;
+    executeInputMiddlewareChain(inputContext: ChatInputPayload): Promise<ChatInputPayload>;
     executeOutputMiddlewareChain(outputContext: OutputContext): Promise<[status: string, outputContext: OutputContext]>;
 }
 //# sourceMappingURL=LlmIoManager.d.ts.map

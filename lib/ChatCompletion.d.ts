@@ -1,11 +1,12 @@
 import { EventHandler, DefaultHandler, ErrorHandler } from './EventManager';
-import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, InputData, MiddlewareStatus, OutputContext, PromptComputer, SystemMessageComputer } from './@types/index';
+import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, InputPayload, MiddlewareStatus, OutputContext, PromptComputer, SystemMessageComputer } from './@types/index';
 import { ChatCompletionRequestMessageRoleEnum } from 'openai';
 import { SessionStorage } from './session/SessionStorage';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
 import { Session } from './session/Session';
 import { OpenAiFunction } from './FunctionManager';
+import { Message } from './session/Message';
 export declare enum ChatCompletionCallInitiator {
     main_flow = "MAIN_FLOW",
     injection = "INJECTION",
@@ -29,9 +30,16 @@ export declare class ChatCompletion {
     private constructor();
     static createInstance(cfg: Config, sms: SystemMessageService, ps: PromptService, hs: SessionStorage): Promise<ChatCompletion>;
     private initialize;
-    chatCompletion(data: InputData): Promise<void>;
-    injectPromptAndSend(promptName: string, session: Session, message: string, promptRole?: ChatCompletionRequestMessageRoleEnum, messageRole?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
-    callAgain(session: Session, message: string, role?: ChatCompletionRequestMessageRoleEnum): Promise<{
+    call(data: InputPayload): Promise<void>;
+    injectPromptAndSend(promptName: string, session: Session, messages: Message[], promptRole?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
+    /**
+     * Use this method when you need to call LLM API again OR after error to continue chat flow.
+     * AND only if last message at ChatHistory is user role
+     *
+     * @param sessionId
+     * @param systemMessageName
+     */
+    callRetry(sessionId: Session['sessionId'], systemMessageName: string): Promise<{
         status?: MiddlewareStatus;
         newOutputContext: OutputContext | undefined;
     }>;
@@ -48,6 +56,7 @@ export declare class ChatCompletion {
     private callFunction;
     private getChatCompletionInitiatorName;
     private chatCompletionCallProcessor;
+    releaseAccToChatQueue: (sessionId: Session['sessionId'], systemMessageName: Session['systemMessageName']) => Promise<void>;
     private chatCompletionBeginProcessor;
 }
 //# sourceMappingURL=ChatCompletion.d.ts.map

@@ -1,9 +1,10 @@
-import { SessionData } from './../@types';
+import { SessionProps } from './../@types';
 import { SessionStorage } from './SessionStorage';
 import { ChatCompletionRequestMessage, ChatCompletionResponseMessage } from 'openai';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { ChatHistory } from './ChatHistory';
-export declare class Session implements SessionData {
+import { Message } from './Message';
+export declare class Session implements SessionProps {
     private readonly sessionStorage;
     readonly sessionId: string;
     readonly systemMessageName: string;
@@ -17,12 +18,14 @@ export declare class Session implements SessionData {
     };
     handlersCount: Record<string, number>;
     ctx: Record<string, unknown>;
+    messageAccumulator: Message[] | null;
     readonly createdAt: number;
     updatedAt: number;
-    constructor(sessionStorage: SessionStorage, sessionData: SessionData);
+    lastError: string | null;
+    constructor(sessionStorage: SessionStorage, sessionData: SessionProps);
     private logPrefix;
     save(): Promise<Session>;
     delete(): Promise<void>;
-    toJSON(): SessionData;
+    toJSON(): SessionProps;
 }
 //# sourceMappingURL=Session.d.ts.map

@@ -4,9 +4,10 @@ import { PromptType } from '../schema/PromptSchema';
 import { Session } from '../session/Session';
 import { ChatCompletionCallInitiator } from '../ChatCompletion';
 import { ChatHistory } from '../session/ChatHistory';
+import { Message } from '../session/Message';
 export interface ChatCompletionMessage extends ChatCompletionRequestMessage, ChatCompletionResponseMessage {
 }
-export interface SessionData {
+export interface SessionProps {
     sessionId: string;
     systemMessageName: string;
     modelPreset: SystemMessageType['modelPreset'];
@@ -19,26 +20,27 @@ export interface SessionData {
     };
     handlersCount: Record<string, number>;
     ctx: Record<string, unknown>;
+    messageAccumulator: Message[] | null;
     createdAt: number;
     updatedAt: number;
+    lastError: string | null;
 }
-export interface InputData {
+export interface InputPayload {
     systemMessageName: string;
-    message: string;
+    messages: Message | Message[];
     sessionId: string;
-    intent?: string;
 }
-export interface InputContext {
+export interface ChatInputPayload {
     sessionId: string;
     systemMessageName: string;
-    message: string;
+    messages: Message[];
 }
 export interface OutputContext {
     initiator: ChatCompletionCallInitiator;
     session: Session;
     llmResponse?: CreateChatCompletionResponse;
 }
-export type IOContext = InputContext | OutputContext;
+export type IOContext = ChatInputPayload | OutputContext;
 export interface Config {
     nodeEnv: string;
     appName: string;
@@ -67,8 +69,8 @@ export interface Config {
         concurrency: number;
     };
     jobsLockDuration: number;
-    jobsAttentions: number;
-    chatCompletionJobCallAttentions: number;
+    jobsAttempts: number;
+    chatCompletionJobCallAttempts: number;
 }
 export declare enum MiddlewareStatus {
     CONTINUE = "CONTINUE",
@@ -76,15 +78,15 @@ export declare enum MiddlewareStatus {
     NOT_RETURNED = "NOT_RETURNED",
     STOP = "STOP"
 }
-export type AsyncLLMInputMiddleware = (context: InputContext, next: (input: InputContext) => Promise<void>) => Promise<void>;
+export type AsyncLLMInputMiddleware = (context: ChatInputPayload, next: (input: ChatInputPayload) => Promise<void>) => Promise<void>;
 export type AsyncLLMOutputMiddleware = (context: OutputContext, next: (output: OutputContext) => Promise<void>) => Promise<{
     status?: MiddlewareStatus;
     newOutputContext: OutputContext | undefined;
 }>;
 export type LLMInputMiddlewares = Map<string, AsyncLLMInputMiddleware>;
 export type LLMOutputMiddlewares = Map<string, AsyncLLMOutputMiddleware>;
-export type SystemMessageComputer = (input: SystemMessageType, context: InputData) => Promise<SystemMessageType>;
+export type SystemMessageComputer = (input: SystemMessageType, context: InputPayload) => Promise<SystemMessageType>;
 export type SystemMessageComputers = Map<string, SystemMessageComputer>;
-export type PromptComputer = (input: PromptType, context: SessionData) => Promise<PromptType>;
+export type PromptComputer = (input: PromptType, context: SessionProps) => Promise<PromptType>;
 export type PromptComputers = Map<string, PromptComputer>;
 //# sourceMappingURL=index.d.ts.map
