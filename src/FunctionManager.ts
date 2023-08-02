@@ -22,8 +22,8 @@ export class FunctionManager {
       throw new Error(`A function with the name "${name}" already exists.`);
     }
 
+    l.info(`Registering AI function with the name "${name}".`);
     this.functions.set(name, fn);
-    l.info(`Registered AI function with the name "${name}".`);
   }
 
   async executeFunction(

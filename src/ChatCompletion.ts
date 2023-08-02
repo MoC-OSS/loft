@@ -164,6 +164,17 @@ export class ChatCompletion {
       );
       l.info(`chatCompletion: validating input...`);
       const chatData = ChatCompletionInputSchema.parse(data);
+      const message = new Message({
+        role: ChatCompletionRequestMessageRoleEnum.User,
+        content: chatData.message,
+      });
+
+      const chatInputPayload: ChatInputPayload = {
+        sessionId: chatData.sessionId,
+        systemMessageName: chatData.systemMessageName,
+        messages: [message],
+      };
+
       l.info(`chatCompletion: creating job key...`);
       const jobKey = sanitizeAndValidateRedisKey(
         `app:${
@@ -174,7 +185,7 @@ export class ChatCompletion {
       );
       l.info(`chatCompletion: job key created: ${jobKey}`);
       l.info(`chatCompletion: adding job to queue...`);
-      await this.completionQueue.add(jobKey, chatData, {
+      await this.completionQueue.add(jobKey, chatInputPayload, {
         removeOnComplete: true,
         attempts: this.cfg.jobsAttempts,
       });
@@ -336,8 +347,9 @@ export class ChatCompletion {
     this.eventManager.useDefault(eventHandler);
   }
 
-  useErrorHandler(eventHandler: ErrorHandler) {
-    this.errorHandler = eventHandler;
+  useErrorHandler(errorHandler: ErrorHandler) {
+    l.info('Registering global ErrorHandler...');
+    this.errorHandler = errorHandler;
   }
 
   useEventHandler(name: string, eventHandler: EventHandler) {
@@ -432,8 +444,10 @@ export class ChatCompletion {
     return initiator as ChatCompletionCallInitiator;
   }
 
-  private async chatCompletionCallProcessor(job: Job<SessionProps>) {
-    let session = new Session(this.hs, job.data);
+  private async chatCompletionCallProcessor(
+    job: Job<{ session: SessionProps }>,
+  ) {
+    let session = new Session(this.hs, job.data.session);
     const { sessionId, systemMessageName, messages, modelPreset } = session;
     const logPrefix = `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} -`;
     l.info(`${logPrefix} getting chat completion initiator name...`);
@@ -508,12 +522,15 @@ export class ChatCompletion {
     } catch (error) {
       l.error(error);
       l.error(
-        `${logPrefix} check attempts... jobAttempts: ${job.opts.attempts}, `,
+        `${logPrefix} check attempts... jobAttempts: ${job.opts.attempts}, of ${this.cfg.chatCompletionJobCallAttempts} provided attempts`,
       );
       if (
         job.opts.attempts &&
         job.opts.attempts >= this.cfg.chatCompletionJobCallAttempts
       ) {
+        session.lastError = JSON.stringify(error);
+        await session.save();
+
         await this.errorHandler(error, { initiator, session });
       }
       throw error;
@@ -554,6 +571,22 @@ export class ChatCompletion {
             attempts: this.cfg.jobsAttempts,
           },
         );
+        l.info(`${logPrefix} job added to queue successfully!`);
+
+        l.info(`${logPrefix} clearing messageAccumulator...`);
+        session.messageAccumulator = null;
+        l.info(`${logPrefix} clearing lastError...`);
+        session.lastError = null;
+        l.info(`${logPrefix} saving session...`);
+        await session.save();
+      } else {
+        l.info(
+          `${logPrefix} messageAccumulator is empty, set null to acc as flag that session is not processing...`,
+        );
+        session.messageAccumulator = null;
+        session.lastError = null;
+        l.info(`${logPrefix} saving session...`);
+        await session.save();
       }
     } catch (error) {
       l.error(error);
@@ -591,9 +624,9 @@ export class ChatCompletion {
           l.info(`${logPrefix} messages appended to accumulator`);
           if (session.lastError !== null) {
             l.error(
-              `${logPrefix} session lastError exists, calling error handler... 
-              You must handle this error in your error handler. 
-              And call ChatCompletion.callRetry() to continue chat flow. 
+              `${logPrefix} session lastError exists, calling error handler...
+              You must handle this error in your error handler.
+              And call ChatCompletion.callRetry() to continue chat flow.
               In other case, chat flow will be interrupted.
               And all new messages will be saved to session.messageAccumulator until ChatCompletion.callRetry() will be successfully finished.
               And after that, all messages from session.messageAccumulator will be added to session.messages and chat flow will be continued.`,
@@ -659,11 +692,24 @@ export class ChatCompletion {
         `${logPrefix} check attempts... jobAttempts: ${job.opts.attempts}, `,
       );
       if (job.opts.attempts && job.opts.attempts >= this.cfg.jobsAttempts) {
-        await this.errorHandler(error, {
-          initiator: ChatCompletionCallInitiator.main_flow,
-          sessionId: job.data.sessionId,
-          systemMessageName: job.data.systemMessageName,
-        });
+        if (await this.hs.isExists(sessionId, systemMessageName)) {
+          const session = await this.hs.getSession(
+            sessionId,
+            systemMessageName,
+          );
+          session.lastError = JSON.stringify(error);
+          await session.save();
+          await this.errorHandler(error, {
+            session,
+            initiator: ChatCompletionCallInitiator.main_flow,
+          });
+        } else {
+          await this.errorHandler(error, {
+            initiator: ChatCompletionCallInitiator.main_flow,
+            sessionId: job.data.sessionId,
+            systemMessageName: job.data.systemMessageName,
+          });
+        }
       }
       throw error;
     }

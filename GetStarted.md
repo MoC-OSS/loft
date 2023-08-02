@@ -200,9 +200,11 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
 20. [x] create overloop prevention and provide control when registered handler
 21. [x] add support OpenAI functions
 22. [x] add createdAt to each message to input, but optional
-23. [ ] add incoming messages accumulator to session
-24. [ ] add ability to send batch of messages and system messages to LLM
+23. [x] add incoming messages accumulator to session
+24. [x] add ability to send batch of messages and system messages to LLM
 25. [ ] add event if LLM response delayed
 26. [x] add global error handler - all errors need send to registered global ErrorHandler
 27. [x] add logger to LLM Orchestrator
 28. [ ] Create Custom Error Classes
+30. [x] accumulator flow control
+31. [x] user input flow controller

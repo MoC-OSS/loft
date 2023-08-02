@@ -1,4 +1,5 @@
 import {
+  ChatInputPayload,
   InputPayload,
   SystemMessageComputer,
   SystemMessageComputers,
@@ -40,7 +41,7 @@ export class SystemMessageService {
 
   async computeSystemMessage(
     systemMessageName: string,
-    context: InputPayload,
+    context: ChatInputPayload,
   ): Promise<SystemMessageType> {
     l.info(`getting systemMessage: ${systemMessageName} computer from map...`);
     const systemMessageComputer =

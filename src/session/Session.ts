@@ -36,12 +36,12 @@ export class Session implements SessionProps {
     this.sessionId = sessionData.sessionId;
     this.systemMessageName = sessionData.systemMessageName;
 
-    l.info(`${this.logPrefix()} - Session initialization...`);
+    l.info(`${this.logPrefix()} Session initialization...`);
 
     this.modelPreset = sessionData.modelPreset;
     this.messages = new ChatHistory(
-      this.sessionId,
-      this.systemMessageName,
+      sessionData.sessionId,
+      sessionData.systemMessageName,
       ...sessionData.messages,
     );
     this.lastMessageByRole = sessionData.lastMessageByRole;

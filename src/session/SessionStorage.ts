@@ -58,7 +58,7 @@ export class SessionStorage {
       sessionId,
       systemMessageName,
       modelPreset,
-      messages: new ChatHistory(sessionId, systemMessageName, ...messages),
+      messages: messages as ChatHistory,
       lastMessageByRole: {
         user: null,
         assistant: null,
@@ -243,10 +243,8 @@ export class SessionStorage {
       session.systemMessageName,
     );
 
-    if (
-      deepEqual(existingSession.ctx, session.ctx) &&
-      deepEqual(existingSession.messages, session.messages)
-    ) {
+    // fix redis frequency save by the same key issue
+    if (deepEqual(existingSession, session)) {
       l.warn(
         `sessionId ${session.sessionId}, systemMessageName: ${session.systemMessageName} - session not changed, skip save and return existing session`,
       );
@@ -261,6 +259,7 @@ export class SessionStorage {
 
     existingSession.ctx = session.ctx;
     existingSession.updatedAt = getTimestamp();
+    existingSession.messageAccumulator = session.messageAccumulator;
     existingSession.lastError = session.lastError;
 
     const sessionKey = this.getChatCompletionSessionKey(

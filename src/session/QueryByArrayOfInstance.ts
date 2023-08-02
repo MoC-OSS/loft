@@ -131,4 +131,9 @@ export abstract class QueryByArrayOfObjects<T> extends Array<T> {
     }
     return true;
   }
+
+  // fix that prevent call empty constructor when use map, filter, etc.
+  static get [Symbol.species]() {
+    return Array;
+  }
 }

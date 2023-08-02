@@ -84,7 +84,7 @@ export class EventManager {
   }
 
   useDefault(eventHandler: DefaultHandler) {
-    l.info(`Registered default event handler.`);
+    l.info(`Registered default EventHandler.`);
     this.defaultEventHandler = eventHandler;
   }
 

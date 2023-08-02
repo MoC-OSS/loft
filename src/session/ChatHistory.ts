@@ -3,31 +3,33 @@ import { isNotUndefined } from '../helpers';
 import { Message } from './Message';
 import { QueryByArrayOfObjects } from './QueryByArrayOfInstance';
 import { getLogger } from './../Logger';
+import { Logger } from 'pino';
 
-const l = getLogger('ChatHistory');
+const logger = getLogger('ChatHistory');
+
+const l = Symbol('logger');
 
 export class ChatHistory extends QueryByArrayOfObjects<Message> {
+  private readonly [l]: Logger; // this Symbol property for exclude logger from built-in Array methods of instance
+
   constructor(
-    private readonly sessionId: string,
-    private readonly systemMessageName: string,
+    sessionId: string,
+    systemMessageName: string,
     ...items: Message[]
   ) {
     super(...items.map((item) => new Message(item)));
-    l.info(`${this.logPrefix()} - ChatHistory initialization...`);
-  }
-
-  private logPrefix(): string {
-    return `sessionId: ${this.sessionId}, systemMessageName: ${this.systemMessageName} -`;
+    this[l] = logger.child({ sessionId, systemMessageName });
+    this[l].info(`ChatHistory initialization...`);
   }
 
   append(message: Message): void {
-    l.info(`${this.logPrefix()}  append new message`);
+    this[l].info(`append new message`);
     this.push(message);
   }
 
   // partial update by id
   updateById(id: string, newData: Partial<Message>): void {
-    l.info(`${this.logPrefix()} update message with id: ${id}`);
+    this[l].info(`update message with id: ${id}`);
     const index = this.findIndex((message) => message.id === id);
     if (index === -1) {
       throw new Error(`Message with id "${id}" not found`);
@@ -36,12 +38,12 @@ export class ChatHistory extends QueryByArrayOfObjects<Message> {
   }
 
   archiveById(id: string): void {
-    l.info(`${this.logPrefix()} archive message with id: ${id}`);
+    this[l].info(`archive message with id: ${id}`);
     this.updateById(id, { isArchived: true });
   }
 
   deleteById(id: string): void {
-    l.info(`${this.logPrefix()} delete message by id: ${id}`);
+    this[l].info(`delete message by id: ${id}`);
     const index = this.findIndex((message) => message.id === id);
     if (index === -1) {
       throw new Error(`Message with id "${id}" not found`);
@@ -50,7 +52,7 @@ export class ChatHistory extends QueryByArrayOfObjects<Message> {
   }
 
   appendAfterMessageId(message: Message, id: string): void {
-    l.info(`${this.logPrefix()} append message after message by id: ${id}`);
+    this[l].info(`append message after message by id: ${id}`);
     const index = this.findIndex((message) => message.id === id);
     if (index === -1) {
       throw new Error(`Message with id "${id}" not found`);
@@ -59,7 +61,7 @@ export class ChatHistory extends QueryByArrayOfObjects<Message> {
   }
 
   replaceById(id: string, message: Message): void {
-    l.info(`${this.logPrefix()} replace message by id: ${id}`);
+    this[l].info(`replace message by id: ${id}`);
     const index = this.findIndex((message) => message.id === id);
     if (index === -1) {
       throw new Error(`Message with id "${id}" not found`);
@@ -68,14 +70,14 @@ export class ChatHistory extends QueryByArrayOfObjects<Message> {
   }
 
   replaceAll(messages: Message[]): ChatHistory {
-    l.info(`${this.logPrefix()} replace all messages`);
+    this[l].info(`replace all messages`);
     this.length = 0;
     this.push(...messages);
     return this;
   }
 
   public formatToOpenAi(): ChatCompletionMessage[] {
-    l.info(`${this.logPrefix()} format messages to OpenAI format`);
+    this[l].info(`format messages to OpenAI format`);
     let messages = this.map((message) => message.formatToOpenAi()).filter(
       isNotUndefined,
     );

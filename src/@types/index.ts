@@ -33,9 +33,9 @@ export interface SessionProps {
   lastError: string | null;
 }
 export interface InputPayload {
-  systemMessageName: string;
-  messages: Message | Message[];
   sessionId: string;
+  systemMessageName: string;
+  message: string;
 }
 
 export interface ChatInputPayload {
@@ -109,7 +109,7 @@ export type LLMOutputMiddlewares = Map<string, AsyncLLMOutputMiddleware>;
 
 export type SystemMessageComputer = (
   input: SystemMessageType,
-  context: InputPayload,
+  context: ChatInputPayload,
 ) => Promise<SystemMessageType>;
 
 export type SystemMessageComputers = Map<string, SystemMessageComputer>;
