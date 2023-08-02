@@ -1,5 +1,5 @@
-import { EventHandler, DefaultHandler, ErrorHandler } from './EventManager';
-import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, InputPayload, MiddlewareStatus, OutputContext, PromptComputer, SystemMessageComputer } from './@types/index';
+import { EventHandler, DefaultHandler } from './EventManager';
+import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, ErrorHandler, InputPayload, MiddlewareStatus, OutputContext, PromptComputer, SystemMessageComputer } from './@types/index';
 import { ChatCompletionRequestMessageRoleEnum } from 'openai';
 import { SessionStorage } from './session/SessionStorage';
 import { SystemMessageService } from './systemMessage/SystemMessageService';

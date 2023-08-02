@@ -89,4 +89,10 @@ export type SystemMessageComputer = (input: SystemMessageType, context: ChatInpu
 export type SystemMessageComputers = Map<string, SystemMessageComputer>;
 export type PromptComputer = (input: PromptType, context: SessionProps) => Promise<PromptType>;
 export type PromptComputers = Map<string, PromptComputer>;
+export type ErrorHandler = (error: Error | unknown, response?: Partial<OutputContext> | {
+    initiator: ChatCompletionCallInitiator;
+    sessionId: Session['sessionId'];
+    systemMessageName: Session['systemMessageName'];
+    message: Message;
+} | undefined) => Promise<void>;
 //# sourceMappingURL=index.d.ts.map
