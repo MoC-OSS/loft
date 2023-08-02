@@ -1,9 +1,5 @@
 import { SessionProps } from './../@types';
 import { SessionStorage } from './SessionStorage';
-import {
-  ChatCompletionRequestMessage,
-  ChatCompletionResponseMessage,
-} from 'openai';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { ChatHistory } from './ChatHistory';
 import { getLogger } from './../Logger';
@@ -17,10 +13,10 @@ export class Session implements SessionProps {
   readonly modelPreset: SystemMessageType['modelPreset'];
   messages: ChatHistory;
   lastMessageByRole: {
-    user: ChatCompletionRequestMessage | null;
-    assistant: ChatCompletionResponseMessage | null;
-    system: ChatCompletionResponseMessage | null;
-    function: ChatCompletionResponseMessage | null;
+    user: Message | null;
+    assistant: Message | null;
+    system: Message | null;
+    function: Message | null;
   };
   handlersCount: Record<string, number>;
   public ctx: Record<string, unknown>;

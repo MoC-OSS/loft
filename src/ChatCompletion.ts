@@ -48,7 +48,6 @@ export class ChatCompletion {
   private readonly eventManager: EventManager;
   private readonly llmIOManager: LlmIOManager;
   private readonly fnManager: FunctionManager;
-  private errorHandler: ErrorHandler;
   private readonly openai: OpenAIApi;
 
   private readonly completionQueue!: Queue;
@@ -61,13 +60,8 @@ export class ChatCompletion {
     private readonly sms: SystemMessageService,
     private readonly ps: PromptService,
     private readonly hs: SessionStorage,
+    private readonly errorHandler: ErrorHandler,
   ) {
-    this.errorHandler = async () => {
-      l.error(
-        'Error occurred in ChatCompletion class, but no ErrorHandler defined. Please define using useErrorHandler(err): Promise<void> to receive the error and session data.',
-      );
-    };
-
     this.eventManager = new EventManager(this.hs, this.errorHandler);
     this.llmIOManager = new LlmIOManager();
     this.fnManager = new FunctionManager();
@@ -139,9 +133,10 @@ export class ChatCompletion {
     sms: SystemMessageService,
     ps: PromptService,
     hs: SessionStorage,
+    errorHandler: ErrorHandler,
   ): Promise<ChatCompletion> {
     l.info('Creating ChatCompletion instance...');
-    const instance = new ChatCompletion(cfg, sms, ps, hs);
+    const instance = new ChatCompletion(cfg, sms, ps, hs, errorHandler);
     await instance.initialize();
     return instance;
   }
@@ -345,11 +340,6 @@ export class ChatCompletion {
 
   useDefaultHandler(eventHandler: DefaultHandler) {
     this.eventManager.useDefault(eventHandler);
-  }
-
-  useErrorHandler(errorHandler: ErrorHandler) {
-    l.info('Registering global ErrorHandler...');
-    this.errorHandler = errorHandler;
   }
 
   useEventHandler(name: string, eventHandler: EventHandler) {

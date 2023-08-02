@@ -1,9 +1,4 @@
 import { Redis, Cluster } from 'ioredis';
-import {
-  ChatCompletionRequestMessage,
-  ChatCompletionRequestMessageRoleEnum,
-  ChatCompletionResponseMessage,
-} from 'openai';
 import { SessionProps } from '../@types';
 import { deepEqual, getTimestamp } from '../helpers';
 import { Session } from './Session';
@@ -148,37 +143,6 @@ export class SessionStorage {
       'EX',
       this.sessionTtl,
     );
-  }
-
-  async replaceLastUserMessage(
-    sessionId: string,
-    systemMessageName: string,
-    newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage,
-    role: ChatCompletionRequestMessageRoleEnum = 'user',
-  ) {
-    l.info(
-      `Replace last user message in session ${sessionId}, systemMessageName: ${systemMessageName}`,
-    );
-
-    const session = await this.getSession(sessionId, systemMessageName);
-    if (session.messages[session.messages.length - 1].role === role) {
-      session.updatedAt = getTimestamp();
-      session.messages[session.messages.length - 1].content =
-        newMessage.content;
-      const sessionKey = this.getChatCompletionSessionKey(
-        sessionId,
-        systemMessageName,
-      );
-
-      await this.client.set(
-        sessionKey,
-        JSON.stringify(session),
-        'EX',
-        this.sessionTtl,
-      );
-    } else {
-      throw new Error("Last message isn't user role message");
-    }
   }
 
   async deleteSession(
