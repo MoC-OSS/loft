@@ -1,5 +1,4 @@
 import { Redis, Cluster } from 'ioredis';
-import { ChatCompletionRequestMessage, ChatCompletionRequestMessageRoleEnum, ChatCompletionResponseMessage } from 'openai';
 import { SessionProps } from '../@types';
 import { Session } from './Session';
 import { Message } from './Message';
@@ -13,7 +12,6 @@ export declare class SessionStorage {
     createSession(sessionId: string, systemMessageName: string, modelPreset: SessionProps['modelPreset'], messages: Message[]): Promise<void>;
     appendMessages(sessionId: string, systemMessageName: string, newMessages: Message[]): Promise<void>;
     appendMessagesToAccumulator(sessionId: string, systemMessageName: string, newMessages: Message[], session?: Session): Promise<void>;
-    replaceLastUserMessage(sessionId: string, systemMessageName: string, newMessage: ChatCompletionResponseMessage | ChatCompletionRequestMessage, role?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
     deleteSession(sessionId: string, systemMessageName: string): Promise<void>;
     deleteSessionsById(sessionId: string): Promise<void>;
     private findKeysByPartialName;

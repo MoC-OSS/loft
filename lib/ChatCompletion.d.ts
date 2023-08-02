@@ -18,17 +18,17 @@ export declare class ChatCompletion {
     private readonly sms;
     private readonly ps;
     private readonly hs;
+    private readonly errorHandler;
     private readonly eventManager;
     private readonly llmIOManager;
     private readonly fnManager;
-    private errorHandler;
     private readonly openai;
     private readonly completionQueue;
     private readonly completionWorker;
     private readonly llmApiCallQueue;
     private readonly llmApiCallWorker;
     private constructor();
-    static createInstance(cfg: Config, sms: SystemMessageService, ps: PromptService, hs: SessionStorage): Promise<ChatCompletion>;
+    static createInstance(cfg: Config, sms: SystemMessageService, ps: PromptService, hs: SessionStorage, errorHandler: ErrorHandler): Promise<ChatCompletion>;
     private initialize;
     call(data: InputPayload): Promise<void>;
     injectPromptAndSend(promptName: string, session: Session, messages: Message[], promptRole?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
@@ -48,7 +48,6 @@ export declare class ChatCompletion {
     useComputeSystemMessage(name: string, handler: SystemMessageComputer): void;
     useComputePrompt(name: string, handler: PromptComputer): void;
     useDefaultHandler(eventHandler: DefaultHandler): void;
-    useErrorHandler(errorHandler: ErrorHandler): void;
     useEventHandler(name: string, eventHandler: EventHandler): void;
     useLLMInput(name: string, middleware: AsyncLLMInputMiddleware): void;
     useLLMOutput(name: string, middleware: AsyncLLMOutputMiddleware): void;

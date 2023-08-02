@@ -13,10 +13,10 @@ export interface SessionProps {
     modelPreset: SystemMessageType['modelPreset'];
     messages: ChatHistory;
     lastMessageByRole: {
-        user: ChatCompletionRequestMessage | null;
-        assistant: ChatCompletionResponseMessage | null;
-        system: ChatCompletionResponseMessage | null;
-        function: ChatCompletionResponseMessage | null;
+        user: Message | null;
+        assistant: Message | null;
+        system: Message | null;
+        function: Message | null;
     };
     handlersCount: Record<string, number>;
     ctx: Record<string, unknown>;
