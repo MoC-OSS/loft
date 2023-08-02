@@ -26,9 +26,9 @@ export interface SessionProps {
     lastError: string | null;
 }
 export interface InputPayload {
-    systemMessageName: string;
-    messages: Message | Message[];
     sessionId: string;
+    systemMessageName: string;
+    message: string;
 }
 export interface ChatInputPayload {
     sessionId: string;
@@ -85,7 +85,7 @@ export type AsyncLLMOutputMiddleware = (context: OutputContext, next: (output: O
 }>;
 export type LLMInputMiddlewares = Map<string, AsyncLLMInputMiddleware>;
 export type LLMOutputMiddlewares = Map<string, AsyncLLMOutputMiddleware>;
-export type SystemMessageComputer = (input: SystemMessageType, context: InputPayload) => Promise<SystemMessageType>;
+export type SystemMessageComputer = (input: SystemMessageType, context: ChatInputPayload) => Promise<SystemMessageType>;
 export type SystemMessageComputers = Map<string, SystemMessageComputer>;
 export type PromptComputer = (input: PromptType, context: SessionProps) => Promise<PromptType>;
 export type PromptComputers = Map<string, PromptComputer>;

@@ -48,7 +48,7 @@ export declare class ChatCompletion {
     useComputeSystemMessage(name: string, handler: SystemMessageComputer): void;
     useComputePrompt(name: string, handler: PromptComputer): void;
     useDefaultHandler(eventHandler: DefaultHandler): void;
-    useErrorHandler(eventHandler: ErrorHandler): void;
+    useErrorHandler(errorHandler: ErrorHandler): void;
     useEventHandler(name: string, eventHandler: EventHandler): void;
     useLLMInput(name: string, middleware: AsyncLLMInputMiddleware): void;
     useLLMOutput(name: string, middleware: AsyncLLMOutputMiddleware): void;

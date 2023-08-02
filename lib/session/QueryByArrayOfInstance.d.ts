@@ -31,6 +31,7 @@ export declare abstract class QueryByArrayOfObjects<T> extends Array<T> {
     constructor(...items: T[]);
     query(query: FullQuery<T>): T[];
     private evaluate;
+    static get [Symbol.species](): ArrayConstructor;
 }
 export {};
 //# sourceMappingURL=QueryByArrayOfInstance.d.ts.map
