@@ -49,15 +49,21 @@ export class SessionStorage {
     );
     l.info(`Create session by key: ${sessionKey}`);
     const timestamp = getTimestamp();
+    const [systemMessage, userMessage] = messages;
+
+    if (!systemMessage && !userMessage) {
+      throw new Error("Can't create session without system and user messages");
+    }
+
     const session = new Session(this, {
       sessionId,
       systemMessageName,
       modelPreset,
       messages: messages as ChatHistory,
       lastMessageByRole: {
-        user: null,
+        user: userMessage,
         assistant: null,
-        system: messages[0],
+        system: systemMessage,
         function: null,
       },
       handlersCount: {},

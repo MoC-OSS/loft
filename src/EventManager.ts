@@ -1,6 +1,5 @@
 import { SessionStorage } from './session/SessionStorage';
-import { OutputContext } from './@types';
-import { Session } from './session/Session';
+import { ErrorHandler, OutputContext } from './@types';
 import { ChatCompletionCallInitiator } from './ChatCompletion';
 import { getLogger } from './Logger';
 
@@ -24,17 +23,6 @@ export interface EventHandler {
 }
 
 export type DefaultHandler = (response: OutputContext) => Promise<void>;
-export type ErrorHandler = (
-  error: Error | unknown,
-  response?:
-    | Partial<OutputContext>
-    | {
-        initiator: ChatCompletionCallInitiator;
-        sessionId: Session['sessionId'];
-        systemMessageName: Session['systemMessageName'];
-      }
-    | undefined,
-) => Promise<void>;
 
 export interface TriggeredEvent {
   name: string;

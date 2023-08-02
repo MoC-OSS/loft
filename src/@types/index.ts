@@ -120,3 +120,16 @@ export type PromptComputer = (
 ) => Promise<PromptType>;
 
 export type PromptComputers = Map<string, PromptComputer>;
+
+export type ErrorHandler = (
+  error: Error | unknown,
+  response?:
+    | Partial<OutputContext>
+    | {
+        initiator: ChatCompletionCallInitiator;
+        sessionId: Session['sessionId'];
+        systemMessageName: Session['systemMessageName'];
+        message: Message;
+      }
+    | undefined,
+) => Promise<void>;

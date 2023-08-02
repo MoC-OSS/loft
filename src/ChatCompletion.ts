@@ -1,14 +1,10 @@
-import {
-  EventHandler,
-  EventManager,
-  DefaultHandler,
-  ErrorHandler,
-} from './EventManager';
+import { EventHandler, EventManager, DefaultHandler } from './EventManager';
 import {
   AsyncLLMInputMiddleware,
   AsyncLLMOutputMiddleware,
   ChatInputPayload,
   Config,
+  ErrorHandler,
   InputPayload,
   MiddlewareStatus,
   OutputContext,
