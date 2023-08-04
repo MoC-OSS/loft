@@ -46,6 +46,9 @@ export class LlmIOManager {
   async executeInputMiddlewareChain(
     inputContext: ChatInputPayload,
   ): Promise<ChatInputPayload> {
+    if (this.llmInputMiddlewareChain.size === 0) {
+      return inputContext;
+    }
     const { sessionId, systemMessageName } = inputContext;
     l.info(
       `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} - Executing input middleware chain`,
@@ -66,6 +69,7 @@ export class LlmIOManager {
           l.info(
             `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} - Executing middleware: ${name}...`,
           );
+          // TODO: need refactor middleware. each middleware should return modified context to check type of context
           await middleware(
             modifiedInputContext,
             (nextInputContext: ChatInputPayload) => {
@@ -92,6 +96,10 @@ export class LlmIOManager {
   async executeOutputMiddlewareChain(
     outputContext: OutputContext,
   ): Promise<[status: string, outputContext: OutputContext]> {
+    if (this.llmOutputMiddlewareChain.size === 0) {
+      return [MiddlewareStatus.CONTINUE, outputContext];
+    }
+
     const { sessionId, systemMessageName } = outputContext.session;
     l.info(
       `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} - Executing output middleware chain`,
@@ -139,7 +147,6 @@ export class LlmIOManager {
           throw error;
         }
       };
-
       await next(outputContext);
     } catch (error) {
       l.error(`Error occurred while executing middleware chain: ${error}`);
@@ -153,6 +160,8 @@ export class LlmIOManager {
         status.includes(MiddlewareStatus.CALL_AGAIN) ||
         status.includes(MiddlewareStatus.STOP),
     );
+
+    modifiedContext.session.save();
 
     if (isCallAgain) {
       l.info(

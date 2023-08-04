@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import { OutputContext } from './@types';
 export const redisKeyRegex = /^[a-zA-Z0-9:_\.-]*$/;
 
 export function getTimestamp() {
@@ -59,4 +60,24 @@ export async function sleep(ms: number): Promise<void> {
 
 export function isNotUndefined<T>(value: T | undefined): value is T {
   return value !== undefined;
+}
+
+// A function to get the content of a choice by index
+export function getContentOfChoiceByIndex(
+  ctx: OutputContext,
+  index: number,
+): string | undefined {
+  return ctx.llmResponse?.choices?.[index]?.message?.content;
+}
+
+// A function to modify the content of a choice by index
+export function modifyContentOfChoiceByIndex(
+  ctx: OutputContext,
+  index: number,
+  newContent: string,
+): void {
+  const choiceMessage = ctx.llmResponse?.choices?.[index]?.message;
+  if (choiceMessage) {
+    choiceMessage.content = newContent;
+  }
 }

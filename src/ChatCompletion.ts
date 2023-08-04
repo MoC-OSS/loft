@@ -694,6 +694,7 @@ export class ChatCompletion {
             initiator: ChatCompletionCallInitiator.main_flow,
             sessionId: job.data.sessionId,
             systemMessageName: job.data.systemMessageName,
+            messages: job.data.messages,
           });
         }
       }

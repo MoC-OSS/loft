@@ -1,13 +1,31 @@
 # Getting Started Guide
+
 ## Introduction
-This documentation provides a step-by-step guide on setting up and using the LLM-orchestrator framework in a backend project with the Fastify framework.
+
+This documentation provides a step-by-step guide on setting up and using the LLM-Orchestrator(LOFT) framework in a backend project with the Fastify framework.
 
 ## Initial Setup
-1. Start by installing the LLM-orchestrator library from the GitHub repository using npm.
+
+1. Start by installing the LLM-Orchestrator library from the GitHub repository using npm.
 
     ```bash
     npm i git+ssh://git@github.com:MoC-Conversational/LLM-orchestrator.git
     ```
+
+    OR for development purposes, clone the repository and link it to your project.
+
+    ```bash
+    cd projects_folder
+    git clone git@github.com:MoC-Conversational/LLM-orchestrator.git
+    cd LLM-orchestrator
+    npm i
+    npm link
+    cd projects_folder/your_project
+    npm i
+    npm link llm-orchestrator && npm run start:dev
+    ```
+
+    Recommended to use npm link before each npm run start:dev to ensure the latest changes are applied, and the library is linked to the project.
 
 2. Next, create an instance of the LLM-Orchestrator, passing the `Config` object to the `LlmOrchestrator.createInstance()` method.
 
@@ -47,7 +65,14 @@ This documentation provides a step-by-step guide on setting up and using the LLM
     });
     const hs = new HistoryStorage(historyClient, 24 * 60 * 60);
 
-    llm = await LlmOrchestrator.createInstance(
+    async function chatCompletionErrHandler(
+      error: Error | unknown,
+      llmResponse: ErrorProperties
+    ) {
+      console.log("ERROR HANDLER: ", error);
+    }
+
+    const chat = await LlmOrchestrator.createInstance(
       {
         nodeEnv: cfg.NODE_ENV,
         appName: cfg.APP_NAME,
@@ -60,18 +85,24 @@ This documentation provides a step-by-step guide on setting up and using the LLM
           duration: cfg.OPENAI_DURATION,
           concurrency: cfg.OPENAI_CONCURRENCY,
         },
-      } as Config,
+        jobsLockDuration: cfg.JOBS_LOCK_DURATION,
+        jobsAttempts: cfg.JOBS_ATTEMPTS,
+        chatCompletionJobCallAttempts: cfg.CHAT_COMPLETION_JOB_CALL_ATTEMPTS,
+      },
       sms,
-      hs
+      ps,
+      hs,
+      chatCompletionErrHandler
     );
     ```
 
 ## Requirements
+
 The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, to function properly.
 
 ## Setting Up Endpoints
 
-1. Establish a `chatCompletion` endpoint for your backend. This endpoint will take a `request.body` as input and pass it to the created LLM Orchestrator instance.
+3. Establish a `chatCompletion` endpoint for your backend. This endpoint will take a `request.body` as input and pass it to the created LLM Orchestrator instance.
 
 
     ```js
@@ -80,7 +111,7 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
       { schema: { ...chatCompletionSchema } },
       async (request, reply) => {
         try {
-          llm.chatCompletion(request.body);
+          chat.call(request.body);
         } catch (e) {
           console.error(e);
           reply.status(500).send({ error: e });
@@ -89,7 +120,7 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
     );
     ```
 
-2. Upload a prepared system_messages.json file with SystemMessages and ModelPresets to your S3 bucket, following this path: bucket-name/bot-name-from-env/env/system_messages.json. 
+4. Upload a prepared system_messages.json file with SystemMessages and ModelPresets to your S3 bucket, following this path: bucket-name/bot-name-from-env/env/system_messages.json. 
 
    The LLM Orchestrator will sync this file with Redis upon library initialization. 
 
@@ -106,71 +137,172 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
       }
     });
     ```
+
 ## Register Callbacks
 
-1. Register ComputeSystemMessage() callback for each SystemMessage from the system_messages.json file that needs rendering.
+5. Optional: Register ComputeSystemMessage() callback for each SystemMessage from the system_messages.json file that needs rendering.
 
-    ```js
-    llm.useComputeSystemChatMessage(
+  ```js
+    llm.useComputeSystemMessage(
           "echo message as json", // system message name must be the same as in system_messages.json file
           async (input: SystemMessageType): Promise<SystemMessageType> => {
             // modify input here
             return input;
           }
         );
-    ```
+  ```
 
-2. Register LLM input and output middlewares. These middlewares can filter Personally Identifiable Information (PII) at LLM input, process output messages, or modify them.
+   Optional: Register ComputePrompt() callback to compute personalized prompts for each user.
+
+  ```js
+    chat.useComputePrompt(
+      "name",
+      async (input: PromptType, ctx: SessionProps): Promise<PromptType> => {
+        console.log("USER INPUT: ", input);
+
+        return input;
+      }
+    );
+  ```
+
+6. Optional: Register LLM input and output middlewares. These middlewares can filter Personally Identifiable Information (PII) at LLM input, process output messages, or modify them.
 
     ```js
-    llm.useLLMInput(
-          "handle user input", // name used for logging
-          async (
-            input: string,
-            next: (input: string) => Promise<void>
-          ): Promise<void> => {
-            // filter or modify input here
-            const edited = `modified INPUT by middleware: ${input}`;
-            await next(edited); // you must call next() callback to pass control to the next middleware.
-          }
-        );
-        llm.useLLMOutput(
-          "handle llm output", // name used for logging
-          async (
-            input: string,
-            next: (response: string) => Promise<void>
-          ): Promise<void> => {
-            // filter or modify response here
-            const edited = `modified OUTPUT by middleware: ${input}`;
-            await next(edited); // you must call next() callback to pass control to the next middleware.
-          }
-        );
+        // ? Is Optional. use it if you want to filter or modify user input messages
+    chat.useLLMInput(
+      "handle LLM input",
+      async (
+        input,
+        next: (input: ChatInputPayload) => Promise<void>
+      ): Promise<void> => {
+        // filter or modify input here
+        // const edited = `modified input by middleware: ${input}`;
+        console.log("INPUT: ", input);
+
+        // input.messages usually contains only one message in array, but if the user sends messages faster than the bot can respond, the messages will be batched
+        const modifiedMessages = input.messages.map((m) => {
+          // modify message here
+          return m;
+        });
+
+        const newContext: ChatInputPayload = {
+          ...input,
+          messages: modifiedMessages,
+        };
+
+        // you should always call next() to pass the modified input to the next middleware
+        // if you don't call next(), other middlewares will not be called
+        // pass the modified input to the next middleware
+        await next(newContext);
+      }
+    );
+
+        // ? Is Optional. use it if you want to filter or modify MML output/response
+    chat.useLLMOutput(
+      "handle LLM output",
+      async (
+        ctx: OutputContext,
+        next: (output: OutputContext) => Promise<void>
+      ): Promise<{
+        status?: MiddlewareStatus;
+        newOutputContext: OutputContext | undefined;
+      }> => {
+        // filter or modify response here
+        console.log("OUTPUT MIDDLEWARES: ", ctx);
+
+        console.log("SESSION_CTX:", ctx.session.ctx);
+        ctx.session.ctx = { ...ctx.session.ctx, userActionFlag: true }; // set custom flag in session context
+        //! please don't save session context at output middlewares, like await ctx.session.save(); it will be saved automatically after the middlewareChain finishes successfully.
+        //! It's very important, otherwise you can lose last session context data. Because it Redis limitation when we try to write data in parallel to the same key.
+
+        const mostRelevantChoice = getContentOfChoiceByIndex(ctx, 0); // get the most relevant OpenAi choice
+        const modifiedContent = `modified output by middleware: ${mostRelevantChoice}`;
+        modifyContentOfChoiceByIndex(ctx, 0, modifiedContent);
+
+        // Also you can query the chat history using ChatHistory method ctx.session.messages.query(mongoLikeQueryByMesaageProps)
+        // And if you feel that the response is not relevant, or not satisfy your requirements,
+        // you can change the ctx.session.messages using ChatHistory methods like append(), updateById(), archiveById(), deleteById(), appendAfterMessageId(), replaceById(), replaceAll().
+        // And then you should call ctx.session.save() to save the changes to the Redis.
+        // And "return chat.callRetry()"
+        // it will break/stop the OutputMiddlewareChain and event handlers, and will start the chat completion job again with the modified ctx.session.messages.
+
+        await next(ctx);
+
+        /* you can control the middleware chain by returning MiddlewareStatus.CONTINUE || undefined to continue the middleware chain
+        OR you can return MiddlewareStatus.CALL_AGAIN || STOP to interrupt the middleware chain and event handlers */
+        return {
+          newOutputContext: ctx,
+          status: MiddlewareStatuses.CONTINUE,
+        };
+      }
+    );
     ```
 
-3. Register the EventHandler() callback for handling expected events based on LLM responses.
+7. Register the EventHandler() callback for handling expected events based on LLM responses.
   An example for this could be a JSON object with the property { "eventType": "eventName" } or any properties with known names and types. Validation can be achieved using a zod schema.
   The presence or coincidence of fields in a JSON object can be considered an event.
   Please consider adapting and using examples from [LangChain OutputParsers](https://js.langchain.com/docs/modules/prompts/output_parsers/) instead of the primitive example provided below:
 
     ```js
-    llm.useEventHandler("echo handler", {
-      eventDetector: async ( // event detector must return boolean value
-        response: string,
+    chat.useEventHandler("nameThatDescribeExpectedEvent", {
+      // event detector must return boolean value.
+      // Optionally: you can use next() callback to pass control to the next event detector to detect several events and then LLM Orchestrator will execute Handler with the highest event priority
+      eventDetector: async (
+        ctx: OutputContext,
         next: () => Promise<void>
       ): Promise<boolean> => {
-        return repronse === "some event" || //try to detect event
-        response.includes("{"eventType":");
+        // you can use ctx.session.messages.query() to query the chat history and detect the event based on the data in the chat history
+        // or try to parse json from LLM response
+        return true; // return true if the event is detected and you want to execute the handler, otherwise return false
       },
-      handler: async (response: string, next: () => Promise<void>) => {
-        // handle event here
-        // you can use next() callback to pass control to the next event handler to handle several events and then LLM Orchestrator will execute Handler with the highest priority
-        // if you don't use next() callback, and eventDetector will return true, then LLM Orchestrator will execute Handler immediately
-        console.log("RESPONSE", response);
+      // Into handler you can use the same session methods as in OutputMiddlewareChain to modify the ctx.session.messages and ctx.session.ctx and then call "await ctx.session.save()".
+      // Please use "await ctx.session.save()" only once in the handler, otherwise you can lose last session context data. Because it Redis limitation when we try to write data in parallel to the same key.
+      handler: async (ctx: OutputContext, next: () => Promise<void>) => {
+        // example of using query() method to get the interesting message from the chat history
+        const userMessage = ctx.session.messages.query({
+          role: { $eq: "user" },
+          isArchived: { $eq: false },
+        });
+
+        const mostRelevantMessageOfChoices = getContentOfChoiceByIndex(ctx, 0); // you can use helper to get the most relevant OpenAi response
+
+        // archive the message if you don't want to exclude it before send it to the LLM API, but not delete it from the messages: ChatHistory
+        ctx.session.messages.archiveById(userMessage[0].id);
+
+        console.log("RESPONSE: ", mostRelevantMessageOfChoices);
+
+        const lastUserMessage = ctx.session.lastMessageByRole.user;
+        if (!lastUserMessage)
+          throw new Error(
+            "lastUserMessage is undefined. Please check the chat history. And handle this case."
+          );
+        // sometimes before send user input to LLM API you need to send some instructions for LLM API, new product information or another context relevant "embedding" information from vector DB.
+        // You can use injectPromptAndSend() method to send the prompt before user input. Prompt stored in S3 bucket, cached with Redis and can be computed to achieve better personalization.
+        // ! instead injections you can use new OpenAi approach: Functions, to send the prompt before user input. chat.useFunction("name", async (ctx, args) => { return "prompt" }) and add function manifest to S3 file into SystemMessage.modelPreset.functions[]
+        // await chat.injectPromptAndSend(
+        //   "name", // you can register useComputePrompt callback with this name and it will be called before send the prompt to the LLM API. you can use it to compute the prompt based on the user context.
+        //   ctx.session,
+        //   [lastUserMessage] // "this user message that will sent after the prompt"
+        // );
+
+        ctx.session.ctx = { ...ctx.session.ctx, userActionFlag: false };
+        await ctx.session.save();
+
+        // also you can use chat.callRetry() to break the event handler chain and start the chat completion job again with the modified ctx.session.messages.
+        // also you can access to your DB or third party services into event handler.
+
+        // finally in this place you can send response to the bot provider webhook or directly to user
       },
-      priority: 0, // priority of event handler from 0 to infinity. The higher number has higher priority
-    } as EventHandler);
+      // Priority of the event handler.
+      // If several event handlers detect the event, then LLM Orchestrator will execute the handler with the highest priority.
+      // Biggest number is higher priority.
+      priority: 0,
+      // Max loops to execute callRetry() method for this handler.
+      maxLoops: 10,
+    });
     ```
-4. Register the DefaultHandler() callback for handling unexpected events or responses based on LLM responses.
+
+8. Register the DefaultHandler() callback for handling unexpected events or responses based on LLM responses.
 
     ```js
     llm.useDefaultHandler(async (llmResponse: string) => {
@@ -179,9 +311,70 @@ The LLM Orchestrator requires several resources, such as Redis, OpenAI, and S3, 
     });
     ```
 
+## Conceptions
+
+### - SystemMessageComputers
+**SystemMessageComputers** - is a callback function that can modify SystemMessage before send it to the LLM API.
+- can modify the SystemMessage
+- can call third party services or DB queries
+
+### - PromptComputers - is a callback function that can modify Prompt before send it to the LLM API for injection.
+- can modify the SystemMessage
+- can call third party services or DB queries
+
+### - Input Middlewares
+**Input Middlewares** - is a chain of functions that can modify the user input before save it in history and sending it to the LLM API.
+- can modify the user input
+- don't have session or access to the chat history
+- can call third party services or DB queries
+- - can control the chain of output middlewares by calling next() callback
+  
+### - Output Middlewares
+**Output Middlewares** - is a chain of functions that can modify the LLM response before save it in history and sending it to the Event Handlers.
+- can modify the LLM response
+- can access to the chat history
+- can set the custom session context
+- can use the session.messages.query() method to query the chat history
+- can use the session.messages.methods to modify the chat history
+- can call third party services or DB queries
+- can callRetry LLM to restart the chat completion job with the modified chat history
+- can control the chain of output middlewares by calling next() callback
+
+### - Functions
+**Functions** - is a OpenAi feature that can be used to provide needed context information to the LLM API before LLM model will generate the response.
+
+- can be called by LLM Model before generate the response
+- can use third party services or DB queries
+- must return string value
+
+### - Event Handlers || Default Handler
+**Event Handlers** - is a chain of event detectors and registered handlers that can be used to handle the LLM response based on the chat history.
+
+- can access to the chat history
+- can set the custom session context
+- can use the session.messages.query() method to query the chat history
+- can use the session.messages.methods to modify the chat history
+- can call third party services or DB queries
+- can callRetry() LLM to restart the chat completion job with the modified chat history
+- can control the chain of event detectors by calling next() callback
+- can prioritize the event handlers by priority property
+- can control the max loops of callRetry() method by maxLoops property
+- it's finally step of the chat completion lifecycle, on this step you can send response to the bot provider webhook or directly to user
+
+### ErrorHandler
+**ErrorHandler** - is a callback function that can be used to handle the error from the Chat Completion lifecycle and inner dependencies.
+
+- can access and manage to the chat history if received session object.
+- can call retry() method to restart the chat completion lifecycle.
+- can control/realize Message Accumulator to the chat history and continue the chat completion lifecycle - try to use it only if you can't handle the error, and you need try to continue the chat completion lifecycle.
+- can call third party services or DB queries.
+- can respond to the bot provider webhook or directly to user.
+- can notificate the developers about the error.
+
+### Full code example by url: https://github.com/MoC-Conversational/Backend-Example/blob/dev/src/index.ts
+
 ## Soon To Be:
 1. [x] ability to resend message to LLM from LLM IO Middlewares and EventHandlers. And add methods for make LLM API calls with rate limit.
-2. [ ] Using parts of libraries from LangChainJS
 3. [x] External dependency injection
 4. [x] write docs
 5. [x] create example project

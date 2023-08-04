@@ -16,6 +16,7 @@ export {
   InputPayload,
   SessionProps,
   ChatInputPayload,
+  ErrorProperties,
 } from './@types/index';
 export { Message } from './session/Message';
 export { ChatHistory } from './session/ChatHistory';
@@ -23,3 +24,7 @@ export { ChatHistory } from './session/ChatHistory';
 import { MiddlewareStatus as MdStatus } from './@types/index';
 export const MiddlewareStatuses = { ...MdStatus } as Record<MdStatus, MdStatus>;
 export type MiddlewareStatus = MdStatus;
+export {
+  getContentOfChoiceByIndex,
+  modifyContentOfChoiceByIndex,
+} from './helpers';
