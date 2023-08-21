@@ -283,7 +283,7 @@ export class ChatCompletion {
     if (
       !(
         session.messages[session.messages.length - 1].role ===
-          ChatCompletionRequestMessageRoleEnum.User &&
+          ChatCompletionRequestMessageRoleEnum.User ||
         session.messages[session.messages.length - 1].role ===
           ChatCompletionRequestMessageRoleEnum.Function
       )
