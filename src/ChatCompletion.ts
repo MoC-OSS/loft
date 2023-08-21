@@ -281,10 +281,12 @@ export class ChatCompletion {
     let session = await this.hs.getSession(sessionId, systemMessageName);
 
     if (
-      session.messages[session.messages.length - 1].role !==
-        ChatCompletionRequestMessageRoleEnum.User ||
-      session.messages[session.messages.length - 1].role !==
-        ChatCompletionRequestMessageRoleEnum.Function
+      !(
+        session.messages[session.messages.length - 1].role ===
+          ChatCompletionRequestMessageRoleEnum.User &&
+        session.messages[session.messages.length - 1].role ===
+          ChatCompletionRequestMessageRoleEnum.Function
+      )
     ) {
       throw new Error(
         `Last message in history is not "user" or "function" role,
