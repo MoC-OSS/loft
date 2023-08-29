@@ -1,3 +1,4 @@
+import { CloudStorageService } from './memory/gcp/CloudStorageService';
 export { ChatCompletion } from './ChatCompletion';
 export { EventHandler } from './EventManager';
 export { SystemMessageService } from './systemMessage/SystemMessageService';
@@ -6,7 +7,8 @@ export { SystemMessageType } from './schema/CreateChatCompletionRequestSchema';
 export { PromptService } from './prompt/PromptService';
 export { PromptStorage } from './prompt/PromptStorage';
 export { PromptType } from './schema/PromptSchema';
-export { S3Service } from './S3Service';
+export { S3Service } from './memory/aws/S3Service';
+export { CloudStorageService } from './memory/gcp/CloudStorageService';
 export { SessionStorage } from './session/SessionStorage';
 export { Session } from './session/Session';
 export {

@@ -4,10 +4,10 @@ import {
   SystemMessageComputer,
   SystemMessageComputers,
 } from '../@types';
-import { S3Service } from '../S3Service';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { SystemMessageStorage } from './SystemMessageStorage';
 import { getLogger } from './../Logger';
+import { IStorageService } from '../memory/CloudObjectStorage';
 
 const l = getLogger('SystemMessageService');
 
@@ -16,7 +16,7 @@ export class SystemMessageService {
 
   constructor(
     private readonly systemMessageStorage: SystemMessageStorage,
-    private readonly s3: S3Service,
+    private readonly s3: IStorageService,
   ) {
     l.info('SystemMessageService initialization...');
     this.systemMessageStorage = systemMessageStorage;

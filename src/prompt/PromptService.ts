@@ -1,8 +1,8 @@
 import { PromptComputer, PromptComputers, SessionProps } from '../@types';
-import { S3Service } from '../S3Service';
 import { PromptType } from '../schema/PromptSchema';
 import { PromptStorage } from './PromptStorage';
 import { getLogger } from './../Logger';
+import { IStorageService } from '../memory/CloudObjectStorage';
 
 const l = getLogger('PromptService');
 
@@ -11,7 +11,7 @@ export class PromptService {
 
   constructor(
     private readonly promptStorage: PromptStorage,
-    private readonly s3: S3Service,
+    private readonly s3: IStorageService,
   ) {}
 
   use(name: string, promptComputer: PromptComputer) {

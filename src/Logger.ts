@@ -27,7 +27,9 @@ if (process.env.LLM_ORCHESTRATOR_ENV === 'development') {
       levelFirst: true,
       timestampKey: 'time',
       ignore: 'pid,hostname,path',
-      messageFormat: `${chalk.magentaBright('[{path}]')} {msg}`,
+      messageFormat: `${chalk.magentaBright(
+        '[{path}] [sessionId: {sessionId}, systemMessage: {systemMessageName}]',
+      )} {msg}`,
     },
   });
 }

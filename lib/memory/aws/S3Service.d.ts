@@ -1,7 +1,8 @@
 /// <reference types="node" />
-import { CreateChatCompletionRequestType } from './schema/CreateChatCompletionRequestSchema';
-import { PromptsFileType } from './schema/PromptSchema';
-export declare class S3Service {
+import { CreateChatCompletionRequestType } from '../../schema/CreateChatCompletionRequestSchema';
+import { PromptsFileType } from '../../schema/PromptSchema';
+import { IStorageService } from '../CloudObjectStorage';
+export declare class S3Service implements IStorageService {
     private readonly env;
     private readonly region;
     private readonly bucketName;
