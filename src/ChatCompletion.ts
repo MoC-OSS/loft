@@ -13,13 +13,6 @@ import {
   SystemMessageComputer,
 } from './@types/index';
 import { Job, Queue, Worker } from 'bullmq';
-import {
-  ChatCompletionRequestMessage,
-  ChatCompletionRequestMessageRoleEnum,
-  Configuration,
-  CreateChatCompletionResponse,
-  OpenAIApi,
-} from 'openai';
 import { SessionStorage } from './session/SessionStorage';
 import { LlmIOManager } from './LlmIoManager';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
@@ -27,9 +20,10 @@ import { PromptService } from './prompt/PromptService';
 import { ChatCompletionInputSchema } from './schema/ChatCompletionSchema';
 import { getTimestamp, sanitizeAndValidateRedisKey } from './helpers';
 import { Session } from './session/Session';
-import { FunctionManager, OpenAiFunction } from './FunctionManager';
 import { Message } from './session/Message';
 import { getLogger } from './Logger';
+import { Palm } from './llm/Palm/Palm';
+import { ChatCompletionRequestMessageRoleEnum } from 'openai';
 
 const l = getLogger('ChatCompletion');
 
@@ -43,8 +37,8 @@ export enum ChatCompletionCallInitiator {
 export class ChatCompletion {
   private readonly eventManager: EventManager;
   private readonly llmIOManager: LlmIOManager;
-  private readonly fnManager: FunctionManager;
-  private readonly openai: OpenAIApi;
+
+  private readonly llm: Palm;
 
   private readonly completionQueue!: Queue;
   private readonly completionWorker!: Worker;
@@ -60,12 +54,7 @@ export class ChatCompletion {
   ) {
     this.eventManager = new EventManager(this.hs, this.errorHandler);
     this.llmIOManager = new LlmIOManager();
-    this.fnManager = new FunctionManager();
-    this.openai = new OpenAIApi(
-      new Configuration({
-        apiKey: cfg.openAiKey,
-      }),
-    );
+    this.llm = new Palm('master-of-code-sandbox');
 
     l.info('ChatCompletion: completionQueue initialization...');
     this.completionQueue = new Queue('chatCompletionQueue', {
@@ -156,7 +145,7 @@ export class ChatCompletion {
       l.info(`chatCompletion: validating input...`);
       const chatData = ChatCompletionInputSchema.parse(data);
       const message = new Message({
-        role: ChatCompletionRequestMessageRoleEnum.User,
+        author: ChatCompletionRequestMessageRoleEnum.User,
         content: chatData.message,
       });
 
@@ -192,7 +181,7 @@ export class ChatCompletion {
     promptName: string,
     session: Session,
     messages: Message[],
-    promptRole: ChatCompletionRequestMessageRoleEnum = 'user',
+    promptRole: 'user' | 'assistant',
   ) {
     const { sessionId, systemMessageName } = session;
 
@@ -207,7 +196,7 @@ export class ChatCompletion {
 
     const promptData = await this.ps.computePrompt(promptName, prevSession);
     const userPrompt = new Message({
-      role: promptRole,
+      author: promptRole,
       content: promptData.prompt,
     });
 
@@ -280,14 +269,7 @@ export class ChatCompletion {
   }> {
     let session = await this.hs.getSession(sessionId, systemMessageName);
 
-    if (
-      !(
-        session.messages[session.messages.length - 1].role ===
-          ChatCompletionRequestMessageRoleEnum.User ||
-        session.messages[session.messages.length - 1].role ===
-          ChatCompletionRequestMessageRoleEnum.Function
-      )
-    ) {
+    if (!(session.messages[session.messages.length - 1].author === 'user')) {
       throw new Error(
         `Last message in history is not "user" or "function" role,
         callRetry() is not recommended to use in this case.
@@ -352,65 +334,6 @@ export class ChatCompletion {
     this.llmIOManager.useOutput(name, middleware);
   }
 
-  useFunction(name: string, fn: OpenAiFunction) {
-    this.fnManager.use(name, fn);
-  }
-
-  private async callFunction(
-    chatCompletionResult: CreateChatCompletionResponse,
-    ctx: OutputContext,
-  ) {
-    const { sessionId, systemMessageName, modelPreset } = ctx.session;
-
-    const fnName =
-      chatCompletionResult.choices[0]?.message?.function_call?.name;
-    const fnArgs =
-      chatCompletionResult.choices[0]?.message?.function_call?.arguments;
-    if (
-      fnName &&
-      fnArgs &&
-      modelPreset.function_call === 'auto' &&
-      (modelPreset.model === 'gpt-3.5-turbo-0613' ||
-        modelPreset.model === 'gpt-4-0613')
-    ) {
-      const fnResult = await this.fnManager.executeFunction(
-        fnName,
-        fnArgs,
-        ctx,
-      );
-
-      const fnMessage = new Message({
-        role: ChatCompletionRequestMessageRoleEnum.Function,
-        content: fnResult,
-        name: fnName,
-      });
-
-      await this.hs.appendMessages(sessionId, systemMessageName, [fnMessage]);
-      const newSession = await this.hs.getSession(sessionId, systemMessageName);
-
-      const jobKey = sanitizeAndValidateRedisKey(
-        `app:${
-          this.cfg.appName
-        }:api_type:chat_completion:function:bullmq_job:job_name:chat_completion_call_processor:intent:set_function_result:session:${sessionId}:system_message:${systemMessageName}:time:${getTimestamp()}`,
-      );
-
-      await this.llmApiCallQueue.add(
-        jobKey,
-        {
-          session: newSession,
-        },
-        {
-          removeOnComplete: true,
-          attempts: this.cfg.chatCompletionJobCallAttempts,
-        },
-      );
-
-      return true;
-    }
-
-    return false;
-  }
-
   private getChatCompletionInitiatorName(
     redisKey: string,
   ): ChatCompletionCallInitiator {
@@ -445,24 +368,28 @@ export class ChatCompletion {
       l.info(`${logPrefix} chat completion initiator name: ${initiator}`);
 
       l.info(`${logPrefix} getting chat completion LLM response...`);
-      const chatCompletion = await this.openai.createChatCompletion({
-        ...session.modelPreset,
-        messages: session.messages.formatToOpenAi(),
-      });
+      const chatCompletion = await this.llm.callPredict(
+        {
+          context: session.systemMessage,
+          examples: session.examples,
+          messages: session.messages.formatToLLM(),
+        },
+        session.modelPreset,
+      );
 
-      const ccm = chatCompletion.data.choices[0].message; // ccm = chat completion message (response)
+      const ccm = chatCompletion.predictions[0].candidates[0];
       if (ccm === undefined) throw new Error('LLM API response is empty');
 
       l.info(`${logPrefix} executing output middlewares...`);
       let [status, outputContext] =
         await this.llmIOManager.executeOutputMiddlewareChain({
           session: session,
-          llmResponse: chatCompletion.data,
+          llmResponse: chatCompletion.predictions[0],
           initiator,
         });
 
       /* Cancel job and history update because in middleware was called callAgain()
-       LlmOrchestrator.callAgain() will change last user message in history 
+       LlmOrchestrator.callAgain() will change last user message in history
        add new job to llmApiCallQueue to recall LLM API
       */
       if (
@@ -473,23 +400,10 @@ export class ChatCompletion {
         return;
       }
 
-      // Function result will be added to history and added to queue llmApiCallQueue.
-      // After that, the execution of this job will be canceled.
-      if (modelPreset.function_call === 'auto') {
-        l.info(
-          `${logPrefix} modelPreset.function_call: auto, calling function...`,
-        );
-        if (await this.callFunction(chatCompletion.data, outputContext)) {
-          l.info(`${logPrefix} function called, job canceled.`);
-          return;
-        } else l.info(`${logPrefix} function not called. Continue...`);
-      }
-
-      const llmResponse = outputContext.llmResponse?.choices[0].message;
-      if (!llmResponse)
-        throw new Error('LLM API response after OutputMiddlewares is empty!');
-
-      const responseMessage = new Message({ ...llmResponse });
+      const responseMessage = new Message({
+        content: ccm.content,
+        author: ccm.author as 'user' | 'assistant',
+      });
       await this.hs.appendMessages(sessionId, systemMessageName, [
         responseMessage,
       ]);
@@ -639,17 +553,18 @@ export class ChatCompletion {
         }
       } else {
         l.info(`${logPrefix} begin computing system message...`);
-        const { systemMessage: computedSystemMessage, modelPreset } =
+        const { systemMessage, model, modelPreset, examples } =
           await this.sms.computeSystemMessage(systemMessageName, job.data);
-        const systemMessage = new Message({
-          role: 'system',
-          content: computedSystemMessage,
-        });
 
-        await this.hs.createSession(sessionId, systemMessageName, modelPreset, [
+        await this.hs.createSession(
+          sessionId,
+          systemMessageName,
           systemMessage,
-          ...processedMessages,
-        ]);
+          model,
+          modelPreset,
+          examples,
+          [...processedMessages],
+        );
       }
 
       const chatSession = await this.hs.getSession(

@@ -4,6 +4,7 @@ import { Message } from './Message';
 import { QueryByArrayOfObjects } from './QueryByArrayOfInstance';
 import { getLogger } from './../Logger';
 import { Logger } from 'pino';
+import { PalmMessage } from '../@types';
 
 const logger = getLogger('ChatHistory');
 
@@ -34,7 +35,8 @@ export class ChatHistory extends QueryByArrayOfObjects<Message> {
     if (index === -1) {
       throw new Error(`Message with id "${id}" not found`);
     }
-    this[index] = new Message({ ...this[index], ...newData });
+
+    this[index] = new Message(Object.assign({}, this[index], newData));
   }
 
   archiveById(id: string): void {
@@ -76,9 +78,9 @@ export class ChatHistory extends QueryByArrayOfObjects<Message> {
     return this;
   }
 
-  public formatToOpenAi(): ChatCompletionMessage[] {
-    this[l].info(`format messages to OpenAI format`);
-    let messages = this.map((message) => message.formatToOpenAi()).filter(
+  public formatToLLM(): PalmMessage[] {
+    this[l].info(`format messages to LLM format`);
+    let messages = this.map((message) => message.formatToLLM()).filter(
       isNotUndefined,
     );
 

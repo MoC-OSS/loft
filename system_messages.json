@@ -3,58 +3,22 @@
     {
       "name": "echo_message_as_json",
       "systemMessage": "You are in JSON returner Role. You must return user text as { \"message\": \"Hello World!\" }. Always without a pre-result message! Like \"Certainly! Here is the JSON object you requested:\"  Or \"Sure! Here is the JSON object you requested:\" or others like this.",
-      "modelPreset": {
-        "model": "gpt-3.5-turbo",
-        "function_call": "none"
-      }
-    },
-    {
-      "name": "echo",
-      "systemMessage": "text",
-      "modelPreset": {
-        "model": "gpt-3.5-turbo",
-        "function_call": "none"
-      }
-    },
-    {
-      "name": "non_echo2",
-      "systemMessage": "hello message",
-      "modelPreset": {
-        "model": "gpt-3.5-turbo",
-        "function_call": "none"
-      }
-    },
-    {
-      "name": "weather",
-      "systemMessage": "hello message",
-      "modelPreset": {
-        "model": "gpt-3.5-turbo-0613",
-        "functions": [
-          {
-            "name": "get_current_weather",
-            "description": "Get the current weather in a given location",
-            "parameters": {
-              "type": "object",
-              "properties": {
-                "location": {
-                  "type": "string",
-                  "description": "The city and state, e.g. San Francisco, CA"
-                },
-                "unit": {
-                  "type": "string",
-                  "enum": [
-                    "celsius",
-                    "fahrenheit"
-                  ]
-                }
-              },
-              "required": [
-                "location"
-              ]
-            }
+      "examples": [
+        {
+          "input": {
+            "content": "How many moons does Mars have?"
+          },
+          "output": {
+            "content": "The planet Mars has two moons, Phobos and Deimos."
           }
-        ],
-        "function_call": "auto"
+        }
+      ],
+      "model": "chat-bison@001",
+      "modelPreset": {
+        "temperature": 0.2,
+        "maxOutputTokens": 256,
+        "topP": 0.95,
+        "topK": 40
       }
     }
   ]

@@ -40,7 +40,10 @@ export class SessionStorage {
   async createSession(
     sessionId: string,
     systemMessageName: string,
+    systemMessage: string,
+    model: string,
     modelPreset: SessionProps['modelPreset'],
+    examples: SessionProps['examples'],
     messages: Message[],
   ): Promise<void> {
     const sessionKey = this.getChatCompletionSessionKey(
@@ -49,7 +52,7 @@ export class SessionStorage {
     );
     l.info(`Create session by key: ${sessionKey}`);
     const timestamp = getTimestamp();
-    const [systemMessage, userMessage] = messages;
+    const [userMessage] = messages;
 
     if (!systemMessage && !userMessage) {
       throw new Error("Can't create session without system and user messages");
@@ -58,13 +61,14 @@ export class SessionStorage {
     const session = new Session(this, {
       sessionId,
       systemMessageName,
+      systemMessage,
+      model,
       modelPreset,
       messages: messages as ChatHistory,
+      examples,
       lastMessageByRole: {
         user: userMessage,
         assistant: null,
-        system: systemMessage,
-        function: null,
       },
       handlersCount: {},
       ctx: {},
@@ -97,7 +101,7 @@ export class SessionStorage {
       newMessages.forEach((newMessage) => {
         session.messages.push(newMessage);
 
-        session.lastMessageByRole[newMessage.role] = newMessage;
+        session.lastMessageByRole[newMessage.author] = newMessage;
       });
       session.updatedAt = getTimestamp();
 
@@ -224,7 +228,7 @@ export class SessionStorage {
     existingSession.messages.length = 0;
     session.messages.forEach((message) => {
       existingSession.messages.push(message);
-      existingSession.lastMessageByRole[message.role] = message;
+      existingSession.lastMessageByRole[message.author] = message;
     });
 
     existingSession.ctx = session.ctx;

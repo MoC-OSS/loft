@@ -65,9 +65,9 @@ export function isNotUndefined<T>(value: T | undefined): value is T {
 // A function to get the content of a choice by index
 export function getContentOfChoiceByIndex(
   ctx: OutputContext,
-  index: number,
+  index: number = 0,
 ): string | undefined {
-  return ctx.llmResponse?.choices?.[index]?.message?.content;
+  return ctx.llmResponse?.candidates[index].content;
 }
 
 // A function to modify the content of a choice by index
@@ -76,7 +76,7 @@ export function modifyContentOfChoiceByIndex(
   index: number,
   newContent: string,
 ): void {
-  const choiceMessage = ctx.llmResponse?.choices?.[index]?.message;
+  const choiceMessage = ctx.llmResponse?.candidates[index];
   if (choiceMessage) {
     choiceMessage.content = newContent;
   }

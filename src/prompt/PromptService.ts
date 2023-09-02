@@ -3,6 +3,7 @@ import { PromptType } from '../schema/PromptSchema';
 import { PromptStorage } from './PromptStorage';
 import { getLogger } from './../Logger';
 import { IStorageService } from '../memory/CloudObjectStorage';
+import { Session } from '../session/Session';
 
 const l = getLogger('PromptService');
 
@@ -34,7 +35,7 @@ export class PromptService {
 
   async computePrompt(
     promptName: string,
-    session: SessionProps,
+    session: Session,
   ): Promise<PromptType> {
     l.info(
       `sessionId: ${session.sessionId} - getting prompt: ${promptName} computer from map...`,

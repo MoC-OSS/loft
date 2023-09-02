@@ -14,16 +14,22 @@ export interface ChatCompletionMessage
   extends ChatCompletionRequestMessage,
     ChatCompletionResponseMessage {}
 
+export type PalmExample = {
+  input: { content: string };
+  output: { content: string };
+};
+
 export interface SessionProps {
   sessionId: string;
   systemMessageName: string;
+  systemMessage: string;
   modelPreset: SystemMessageType['modelPreset'];
   messages: ChatHistory;
+  examples: PalmExample[];
+  model: string;
   lastMessageByRole: {
     user: Message | null;
     assistant: Message | null;
-    system: Message | null;
-    function: Message | null;
   };
   handlersCount: Record<string, number>;
   ctx: Record<string, unknown>;
@@ -47,7 +53,7 @@ export interface ChatInputPayload {
 export interface OutputContext {
   initiator: ChatCompletionCallInitiator;
   session: Session;
-  llmResponse?: CreateChatCompletionResponse;
+  llmResponse?: PredictionResponse['predictions'][number];
 }
 
 export type IOContext = ChatInputPayload | OutputContext;
@@ -116,7 +122,7 @@ export type SystemMessageComputers = Map<string, SystemMessageComputer>;
 
 export type PromptComputer = (
   input: PromptType,
-  context: SessionProps,
+  context: Session,
 ) => Promise<PromptType>;
 
 export type PromptComputers = Map<string, PromptComputer>;
@@ -135,3 +141,16 @@ export type ErrorHandler = (
   error: Error | unknown,
   response?: ErrorProperties,
 ) => Promise<void>;
+
+// ========================================================================
+import { protos } from '@google-ai/generativelanguage';
+import { PredictionResponse } from '../llm/Palm/@types/response';
+
+export type IGenerateMessageResponse =
+  protos.google.ai.generativelanguage.v1beta2.IGenerateMessageResponse;
+export type IGenerateMessageRequest =
+  protos.google.ai.generativelanguage.v1beta2.IGenerateMessageRequest;
+
+export type IMessagePrompt =
+  protos.google.ai.generativelanguage.v1beta2.IMessagePrompt;
+export type PalmMessage = protos.google.ai.generativelanguage.v1beta2.IMessage;

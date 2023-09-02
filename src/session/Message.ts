@@ -1,19 +1,20 @@
+import { v4 as uuid } from 'uuid';
+import { PalmMessage } from '../@types';
+import { getTimestamp } from '../helpers';
 import {
   ChatCompletionRequestMessageFunctionCall,
   ChatCompletionRequestMessageRoleEnum,
 } from 'openai';
-import { v4 as uuid } from 'uuid';
-import { ChatCompletionMessage } from '../@types';
-import { getTimestamp } from '../helpers';
 
 export enum MessageType {
   INJECTION = 'injection',
   EMBEDDING = 'embedding',
 }
 
-export class Message implements ChatCompletionMessage {
+export class Message implements Omit<PalmMessage, 'author'> {
   id: string;
-  role: ChatCompletionRequestMessageRoleEnum;
+  author: 'user' | 'assistant';
+  citationMetadata?: PalmMessage['citationMetadata'];
   content?: string;
   name?: string;
   function_call?: ChatCompletionRequestMessageFunctionCall;
@@ -26,7 +27,8 @@ export class Message implements ChatCompletionMessage {
 
   constructor(msg: {
     id?: Message['id'];
-    role: Message['role'];
+    author: Message['author'];
+    citationMetadata?: Message['citationMetadata'];
     content?: Message['content'];
     name?: Message['name'];
     function_call?: Message['function_call'];
@@ -40,7 +42,7 @@ export class Message implements ChatCompletionMessage {
     const timestamp = getTimestamp();
 
     this.id = msg.id || uuid();
-    this.role = msg.role;
+    this.author = msg.author || ChatCompletionRequestMessageRoleEnum.User;
     this.content = msg.content;
     this.name = msg.name;
     this.function_call = msg.function_call;
@@ -52,10 +54,11 @@ export class Message implements ChatCompletionMessage {
     this.updatedAt = msg.updatedAt || timestamp;
   }
 
-  toJSON() {
+  toJSON(): Partial<Message> {
     return {
       id: this.id,
-      role: this.role,
+      author: this.author,
+      citationMetadata: this.citationMetadata,
       content: this.content,
       name: this.name,
       function_call: this.function_call,
@@ -69,14 +72,15 @@ export class Message implements ChatCompletionMessage {
   }
 
   //use to filter out additional fields
-  public formatToOpenAi(): ChatCompletionMessage | undefined {
+  public formatToLLM(): PalmMessage | undefined {
     if (this.isArchived === true) return undefined;
 
-    return {
-      role: this.role,
+    const message = {
+      author: this.author,
       content: this.content,
-      name: this.name,
-      function_call: this.function_call,
+      citationMetadata: this.citationMetadata,
     };
+
+    return JSON.parse(JSON.stringify(message)); //delete undefined fields
   }
 }

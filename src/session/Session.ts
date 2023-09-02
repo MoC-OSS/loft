@@ -1,4 +1,4 @@
-import { SessionProps } from './../@types';
+import { PalmExample, SessionProps } from './../@types';
 import { SessionStorage } from './SessionStorage';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { ChatHistory } from './ChatHistory';
@@ -10,13 +10,14 @@ const l = getLogger('Session');
 export class Session implements SessionProps {
   readonly sessionId: string;
   readonly systemMessageName: string;
+  readonly systemMessage: string;
+  readonly model: string;
   readonly modelPreset: SystemMessageType['modelPreset'];
   messages: ChatHistory;
+  readonly examples: PalmExample[];
   lastMessageByRole: {
     user: Message | null;
     assistant: Message | null;
-    system: Message | null;
-    function: Message | null;
   };
   handlersCount: Record<string, number>;
   public ctx: Record<string, unknown>;
@@ -31,15 +32,18 @@ export class Session implements SessionProps {
   ) {
     this.sessionId = sessionData.sessionId;
     this.systemMessageName = sessionData.systemMessageName;
+    this.systemMessage = sessionData.systemMessage;
 
     l.info(`${this.logPrefix()} Session initialization...`);
 
+    this.model = sessionData.model;
     this.modelPreset = sessionData.modelPreset;
     this.messages = new ChatHistory(
       sessionData.sessionId,
       sessionData.systemMessageName,
       ...sessionData.messages,
     );
+    this.examples = sessionData.examples;
     this.lastMessageByRole = sessionData.lastMessageByRole;
     this.handlersCount = sessionData.handlersCount;
     this.ctx = sessionData.ctx;
@@ -67,8 +71,11 @@ export class Session implements SessionProps {
     return {
       sessionId: this.sessionId,
       systemMessageName: this.systemMessageName,
+      systemMessage: this.systemMessage,
+      model: this.model,
       modelPreset: this.modelPreset,
       messages: this.messages,
+      examples: this.examples,
       lastMessageByRole: this.lastMessageByRole,
       handlersCount: this.handlersCount,
       ctx: this.ctx,
