@@ -1,6 +1,6 @@
-import { ChatCompletionMessage } from '../@types';
 import { Message } from './Message';
 import { QueryByArrayOfObjects } from './QueryByArrayOfInstance';
+import { PalmMessage } from '../@types';
 declare const l: unique symbol;
 export declare class ChatHistory extends QueryByArrayOfObjects<Message> {
     private readonly [l];
@@ -12,7 +12,7 @@ export declare class ChatHistory extends QueryByArrayOfObjects<Message> {
     appendAfterMessageId(message: Message, id: string): void;
     replaceById(id: string, message: Message): void;
     replaceAll(messages: Message[]): ChatHistory;
-    formatToOpenAi(): ChatCompletionMessage[];
+    formatToLLM(): PalmMessage[];
 }
 export {};
 //# sourceMappingURL=ChatHistory.d.ts.map

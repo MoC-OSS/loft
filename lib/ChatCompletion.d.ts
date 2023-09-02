@@ -1,11 +1,9 @@
 import { EventHandler, DefaultHandler } from './EventManager';
 import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, ErrorHandler, InputPayload, MiddlewareStatus, OutputContext, PromptComputer, SystemMessageComputer } from './@types/index';
-import { ChatCompletionRequestMessageRoleEnum } from 'openai';
 import { SessionStorage } from './session/SessionStorage';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
 import { Session } from './session/Session';
-import { OpenAiFunction } from './FunctionManager';
 import { Message } from './session/Message';
 export declare enum ChatCompletionCallInitiator {
     main_flow = "MAIN_FLOW",
@@ -21,8 +19,7 @@ export declare class ChatCompletion {
     private readonly errorHandler;
     private readonly eventManager;
     private readonly llmIOManager;
-    private readonly fnManager;
-    private readonly openai;
+    private readonly llm;
     private readonly completionQueue;
     private readonly completionWorker;
     private readonly llmApiCallQueue;
@@ -31,7 +28,7 @@ export declare class ChatCompletion {
     static createInstance(cfg: Config, sms: SystemMessageService, ps: PromptService, hs: SessionStorage, errorHandler: ErrorHandler): Promise<ChatCompletion>;
     private initialize;
     call(data: InputPayload): Promise<void>;
-    injectPromptAndSend(promptName: string, session: Session, messages: Message[], promptRole?: ChatCompletionRequestMessageRoleEnum): Promise<void>;
+    injectPromptAndSend(promptName: string, session: Session, messages: Message[], promptRole: 'user' | 'assistant'): Promise<void>;
     /**
      * Use this method when you need to call LLM API again OR after error to continue chat flow.
      * AND only if last message at ChatHistory is user role
@@ -51,8 +48,6 @@ export declare class ChatCompletion {
     useEventHandler(name: string, eventHandler: EventHandler): void;
     useLLMInput(name: string, middleware: AsyncLLMInputMiddleware): void;
     useLLMOutput(name: string, middleware: AsyncLLMOutputMiddleware): void;
-    useFunction(name: string, fn: OpenAiFunction): void;
-    private callFunction;
     private getChatCompletionInitiatorName;
     private chatCompletionCallProcessor;
     releaseAccToChatQueue: (sessionId: Session['sessionId'], systemMessageName: Session['systemMessageName']) => Promise<void>;
