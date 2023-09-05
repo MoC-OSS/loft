@@ -1,7 +1,7 @@
 {
-  "name": "llm-orchestrator",
-  "version": "1.0.6",
-  "description": "llm-orchestrator library",
+  "name": "loft-palm",
+  "version": "1.0.7",
+  "description": "LLM-Orchestrator (LOFT) is a robust framework designed for high-throughput, scalable backend systems. It provides comprehensive features for handling chat completion, chat input/output middlewares, event detection, handling, and more. LOFT is independent of any HTTP framework. Built on a queue-based architecture, LOFT supports rate-limiting and horizontal scaling, making it ideal for large-scale deployments.",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "scripts": {
@@ -9,8 +9,8 @@
     "build": "tsc -p tsconfig.json",
     "continues:build": "tsc -p tsconfig.json --watch"
   },
-  "author": "Oleksandr Havuka",
-  "license": "ISC",
+  "author": "Master of Code Global",
+  "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.4.5",
     "@types/uuid": "^9.0.2",
@@ -22,7 +22,8 @@
     "typescript": "^5.1.6"
   },
   "files": [
-    "lib"
+    "lib/",
+    "*.d.ts"
   ],
   "dependencies": {
     "@aws-sdk/client-s3": "^3.379.1",

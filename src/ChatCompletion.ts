@@ -95,10 +95,10 @@ export class ChatCompletion {
       async (job: Job) => this.chatCompletionCallProcessor(job),
       {
         limiter: {
-          max: this.cfg.openAiRateLimiter.max,
-          duration: this.cfg.openAiRateLimiter.duration,
+          max: this.cfg.llmRateLimiter.max,
+          duration: this.cfg.llmRateLimiter.duration,
         },
-        concurrency: this.cfg.openAiRateLimiter.concurrency,
+        concurrency: this.cfg.llmRateLimiter.concurrency,
         connection: {
           host: this.cfg.redisHost,
           port: this.cfg.redisPort,

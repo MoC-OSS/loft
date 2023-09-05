@@ -1,4 +1,3 @@
-import { ChatCompletionMessage } from '../@types';
 import { isNotUndefined } from '../helpers';
 import { Message } from './Message';
 import { QueryByArrayOfObjects } from './QueryByArrayOfInstance';

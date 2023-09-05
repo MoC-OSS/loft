@@ -1,8 +1,8 @@
 {
   "systemMessages": [
     {
-      "name": "echo_message_as_json",
-      "systemMessage": "You are in JSON returner Role. You must return user text as { \"message\": \"Hello World!\" }. Always without a pre-result message! Like \"Certainly! Here is the JSON object you requested:\"  Or \"Sure! Here is the JSON object you requested:\" or others like this.",
+      "name": "you_are_astronomer",
+      "systemMessage": "My name is Miles. You are an astronomer, knowledgeable about the solar system.",
       "examples": [
         {
           "input": {

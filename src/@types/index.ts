@@ -1,18 +1,9 @@
-import {
-  ChatCompletionRequestMessage,
-  ChatCompletionResponseMessage,
-  CreateChatCompletionResponse,
-} from 'openai';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { PromptType } from '../schema/PromptSchema';
 import { Session } from '../session/Session';
 import { ChatCompletionCallInitiator } from '../ChatCompletion';
 import { ChatHistory } from '../session/ChatHistory';
 import { Message } from '../session/Message';
-
-export interface ChatCompletionMessage
-  extends ChatCompletionRequestMessage,
-    ChatCompletionResponseMessage {}
 
 export type PalmExample = {
   input: { content: string };
@@ -64,8 +55,7 @@ export interface Config {
   redisHost: string;
   redisPort: number;
   bullMqDb: number;
-  openAiKey: string;
-  openAiRateLimiter: {
+  llmRateLimiter: {
     /**
      * Max number of jobs to process in the time period
      * specified in `duration`.

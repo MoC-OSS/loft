@@ -1,4 +1,3 @@
-import { CloudStorageService } from './memory/gcp/CloudStorageService';
 export { ChatCompletion } from './ChatCompletion';
 export { EventHandler } from './EventManager';
 export { SystemMessageService } from './systemMessage/SystemMessageService';

@@ -52,12 +52,6 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
         }>;
     }, "strip", z.ZodTypeAny, {
         name: string;
-        modelPreset: {
-            temperature: number;
-            maxOutputTokens: number;
-            topP: number;
-            topK: number;
-        };
         systemMessage: string;
         examples: {
             input: {
@@ -68,14 +62,14 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             };
         }[];
         model: string;
+        modelPreset: {
+            temperature: number;
+            maxOutputTokens: number;
+            topP: number;
+            topK: number;
+        };
     }, {
         name: string;
-        modelPreset: {
-            temperature: number;
-            maxOutputTokens: number;
-            topP: number;
-            topK: number;
-        };
         systemMessage: string;
         examples: {
             input: {
@@ -86,16 +80,16 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             };
         }[];
         model: string;
+        modelPreset: {
+            temperature: number;
+            maxOutputTokens: number;
+            topP: number;
+            topK: number;
+        };
     }>, "many">;
 }, "strict", z.ZodTypeAny, {
     systemMessages: {
         name: string;
-        modelPreset: {
-            temperature: number;
-            maxOutputTokens: number;
-            topP: number;
-            topK: number;
-        };
         systemMessage: string;
         examples: {
             input: {
@@ -106,16 +100,16 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             };
         }[];
         model: string;
+        modelPreset: {
+            temperature: number;
+            maxOutputTokens: number;
+            topP: number;
+            topK: number;
+        };
     }[];
 }, {
     systemMessages: {
         name: string;
-        modelPreset: {
-            temperature: number;
-            maxOutputTokens: number;
-            topP: number;
-            topK: number;
-        };
         systemMessage: string;
         examples: {
             input: {
@@ -126,6 +120,12 @@ export declare const createChatCompletionRequestSchema: z.ZodObject<{
             };
         }[];
         model: string;
+        modelPreset: {
+            temperature: number;
+            maxOutputTokens: number;
+            topP: number;
+            topK: number;
+        };
     }[];
 }>;
 export type CreateChatCompletionRequestType = z.infer<typeof createChatCompletionRequestSchema>;
