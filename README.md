@@ -16,34 +16,34 @@ LLM-Orchestrator (LOFT) is a robust framework designed for high-throughput, scal
 Install via npm:
 
 ```bash
-npm install loft
+npm install @mocg/loft-palm
 ```
-
 
 ## Initial Setup
 
-1. Start by installing the LLM-Orchestrator library from the GitHub repository using npm.
+1. Start by installing the LOFT library from the GitHub repository using npm.
 
 ```bash
-npm i git+ssh://git@github.com:MoC-Conversational/LLM-orchestrator.git
+npm install @mocg/loft-palm
 ```
 
 OR for development purposes, clone the repository and link it to your project.
 
 ```bash
 cd projects_folder
-git clone git@github.com:MoC-Conversational/LLM-orchestrator.git
-cd LLM-orchestrator
+git clone git@github.com:MoC-OSS/loft.git
+cd loft
+git checkout palm/main
 npm i
 npm link
 cd projects_folder/your_project
 npm i
-npm link llm-orchestrator && npm run start:dev
+npm link @mocg/loft-palm && npm run start:dev
 ```
 
 Recommended to use npm link before each npm run start:dev to ensure the latest changes are applied, and the library is linked to the project.
 
-2. Next, create an instance of the LLM-Orchestrator, passing the `Config` object to the `LlmOrchestrator.createInstance()` method.
+1. Next, create an instance of the LOFT, passing the `Config` object to the `LlmOrchestrator.createInstance()` method.
 
 ```js
 import {
@@ -55,7 +55,7 @@ import {
   SystemMessageService,
   HistoryStorage,
   S3Service,
-} from "llm-orchestrator";
+} from "@mocg/loft-palm";
 import { cfg } from "./config/env";
 
 const systemMessageClient = new Redis({
@@ -65,14 +65,15 @@ const systemMessageClient = new Redis({
 });
 const systemMessageStorage = new SystemMessageStorage(systemMessageClient);
 
-const s3 = new S3Service(
-  cfg.NODE_ENV,
-  cfg.S3_REGION,
-  cfg.S3_BUCKET_NAME,
-  cfg.APP_NAME
-);
+const cloudStorage = new CloudStorageService(
+      cfg.NODE_ENV,
+      cfg.GCP_CLOUD_STORAGE_BUCKET_NAME,
+      cfg.APP_NAME
+    );
 
-const sms = new SystemMessageService(systemMessageStorage, s3);
+const sms = new SystemMessageService(systemMessageStorage, cloudStorage);
+const ps = new PromptService(promptStorage, cloudStorage);
+
 
 const historyClient = new Redis({
   host: cfg.REDIS_HOST,
@@ -135,9 +136,9 @@ server.post<ChatCompletionHandler>(
 );
 ```
 
-4. Upload a prepared system_messages.json file with SystemMessages and ModelPresets to your S3 bucket, following this path: bucket-name/bot-name-from-env/env/system_messages.json. 
+4. Upload a prepared system_messages.json file with SystemMessages and ModelPresets to your S3 bucket, following this path: bucket-name/bot-name-from-env/env/system_messages.json.
 
-The LLM Orchestrator will sync this file with Redis upon library initialization. 
+The LLM Orchestrator will sync this file with Redis upon library initialization.
 You can also manually sync SystemMessages with the llm.syncSystemMessages() method.
 
 ```js
@@ -324,20 +325,24 @@ llm.useDefaultHandler(async (llmResponse: string) => {
 ## Conceptions
 
 **SystemMessageComputers** - is a callback function that can modify SystemMessage before send it to the LLM API.
+
 - can modify the SystemMessage
 - can call third party services or DB queries
 
 **PromptComputers** - is a callback function that can modify Prompt before send it to the LLM API for injection.
+
 - can modify the SystemMessage
 - can call third party services or DB queries
 
 **Input Middlewares** - is a chain of functions that can modify the user input before save it in history and sending it to the LLM API.
+
 - can modify the user input
 - don't have session or access to the chat history
 - can call third party services or DB queries
-- - can control the chain of output middlewares by calling next() callback
+- can control the chain of output middlewares by calling next() callback
   
 **Output Middlewares** - is a chain of functions that can modify the LLM response before save it in history and sending it to the Event Handlers.
+
 - can modify the LLM response
 - can access to the chat history
 - can set the custom session context
@@ -348,6 +353,7 @@ llm.useDefaultHandler(async (llmResponse: string) => {
 - can control the chain of output middlewares by calling next() callback
 
 **Event Handlers  || Default Handler** - is a chain of event detectors and registered handlers that can be used to handle the LLM response based on the chat history.
+
 - can access to the chat history
 - can set the custom session context
 - can use the session.messages.query() method to query the chat history
@@ -360,6 +366,7 @@ llm.useDefaultHandler(async (llmResponse: string) => {
 - it's finally step of the chat completion lifecycle, on this step you can send response to the bot provider webhook or directly to user
 
 **ErrorHandler** - is a callback function that can be used to handle the error from the Chat Completion lifecycle and inner dependencies.
+
 - can access and manage to the chat history if received session object.
 - can call retry() method to restart the chat completion lifecycle.
 - can control/realize Message Accumulator to the chat history and continue the chat completion lifecycle - try to use it only if you can't handle the error, and you need try to continue the chat completion lifecycle.
