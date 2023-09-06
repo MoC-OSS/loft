@@ -1,7 +1,6 @@
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { PromptType } from '../schema/PromptSchema';
 import { Session } from '../session/Session';
-import { ChatCompletionCallInitiator } from '../ChatCompletion';
 import { ChatHistory } from '../session/ChatHistory';
 import { Message } from '../session/Message';
 export type PalmExample = {
@@ -40,6 +39,12 @@ export interface ChatInputPayload {
     sessionId: string;
     systemMessageName: string;
     messages: Message[];
+}
+export declare enum ChatCompletionCallInitiator {
+    main_flow = "MAIN_FLOW",
+    injection = "INJECTION",
+    call_again = "CALL_AGAIN",
+    set_function_result = "SET_FUNCTION_RESULT"
 }
 export interface OutputContext {
     initiator: ChatCompletionCallInitiator;

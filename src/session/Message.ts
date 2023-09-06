@@ -1,10 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { PalmMessage } from '../@types';
 import { getTimestamp } from '../helpers';
-import {
-  ChatCompletionRequestMessageFunctionCall,
-  ChatCompletionRequestMessageRoleEnum,
-} from 'openai';
 
 export enum MessageType {
   INJECTION = 'injection',
@@ -17,8 +13,8 @@ export class Message implements Omit<PalmMessage, 'author'> {
   citationMetadata?: PalmMessage['citationMetadata'];
   content?: string;
   name?: string;
-  function_call?: ChatCompletionRequestMessageFunctionCall;
-  type?: MessageType | null;
+  // function_call?: ChatCompletionRequestMessageFunctionCall;
+  // type?: MessageType | null;
   tags?: string[] | null;
   customProperties: Record<string, unknown> | {};
   isArchived: boolean;
@@ -31,8 +27,8 @@ export class Message implements Omit<PalmMessage, 'author'> {
     citationMetadata?: Message['citationMetadata'];
     content?: Message['content'];
     name?: Message['name'];
-    function_call?: Message['function_call'];
-    type?: Message['type'];
+    // function_call?: Message['function_call'];
+    // type?: Message['type'];
     tags?: Message['tags'];
     customProperties?: Message['customProperties'];
     isArchived?: Message['isArchived'];
@@ -42,11 +38,11 @@ export class Message implements Omit<PalmMessage, 'author'> {
     const timestamp = getTimestamp();
 
     this.id = msg.id || uuid();
-    this.author = msg.author || ChatCompletionRequestMessageRoleEnum.User;
+    this.author = msg.author || 'user';
     this.content = msg.content;
     this.name = msg.name;
-    this.function_call = msg.function_call;
-    this.type = msg.type;
+    // this.function_call = msg.function_call;
+    // this.type = msg.type;
     this.tags = msg.tags || [];
     this.customProperties = msg.customProperties || {};
     this.isArchived = msg.isArchived || false;
@@ -61,8 +57,8 @@ export class Message implements Omit<PalmMessage, 'author'> {
       citationMetadata: this.citationMetadata,
       content: this.content,
       name: this.name,
-      function_call: this.function_call,
-      type: this.type,
+      // function_call: this.function_call,
+      // type: this.type,
       tags: this.tags,
       customProperties: this.customProperties,
       isArchived: this.isArchived,

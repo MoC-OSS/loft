@@ -16,7 +16,7 @@ LLM-Orchestrator (LOFT) is a robust framework designed for high-throughput, scal
 Install via npm:
 
 ```bash
-npm install loft
+npm install @mocg/loft-palm
 ```
 
 

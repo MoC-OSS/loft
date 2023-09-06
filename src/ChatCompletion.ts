@@ -2,6 +2,7 @@ import { EventHandler, EventManager, DefaultHandler } from './EventManager';
 import {
   AsyncLLMInputMiddleware,
   AsyncLLMOutputMiddleware,
+  ChatCompletionCallInitiator,
   ChatInputPayload,
   Config,
   ErrorHandler,
@@ -23,16 +24,8 @@ import { Session } from './session/Session';
 import { Message } from './session/Message';
 import { getLogger } from './Logger';
 import { Palm } from './llm/Palm/Palm';
-import { ChatCompletionRequestMessageRoleEnum } from 'openai';
 
 const l = getLogger('ChatCompletion');
-
-export enum ChatCompletionCallInitiator {
-  main_flow = 'MAIN_FLOW',
-  injection = 'INJECTION',
-  call_again = 'CALL_AGAIN',
-  set_function_result = 'SET_FUNCTION_RESULT',
-}
 
 export class ChatCompletion {
   private readonly eventManager: EventManager;
@@ -145,7 +138,7 @@ export class ChatCompletion {
       l.info(`chatCompletion: validating input...`);
       const chatData = ChatCompletionInputSchema.parse(data);
       const message = new Message({
-        author: ChatCompletionRequestMessageRoleEnum.User,
+        author: 'user',
         content: chatData.message,
       });
 

@@ -5,12 +5,6 @@ import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
 import { Session } from './session/Session';
 import { Message } from './session/Message';
-export declare enum ChatCompletionCallInitiator {
-    main_flow = "MAIN_FLOW",
-    injection = "INJECTION",
-    call_again = "CALL_AGAIN",
-    set_function_result = "SET_FUNCTION_RESULT"
-}
 export declare class ChatCompletion {
     private readonly cfg;
     private readonly sms;

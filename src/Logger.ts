@@ -1,8 +1,8 @@
 import pino, { Logger, LoggerOptions } from 'pino';
 // import * as path from 'path';
 import chalk from 'chalk';
-import dotenv from 'dotenv';
-dotenv.config();
+// import * as dotenv from 'dotenv';
+// dotenv.config();
 
 let loggerOptions: LoggerOptions = {
   enabled: true,
