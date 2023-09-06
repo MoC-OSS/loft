@@ -1,5 +1,4 @@
 import { PalmMessage } from '../@types';
-import { ChatCompletionRequestMessageFunctionCall } from 'openai';
 export declare enum MessageType {
     INJECTION = "injection",
     EMBEDDING = "embedding"
@@ -10,8 +9,6 @@ export declare class Message implements Omit<PalmMessage, 'author'> {
     citationMetadata?: PalmMessage['citationMetadata'];
     content?: string;
     name?: string;
-    function_call?: ChatCompletionRequestMessageFunctionCall;
-    type?: MessageType | null;
     tags?: string[] | null;
     customProperties: Record<string, unknown> | {};
     isArchived: boolean;
@@ -23,8 +20,6 @@ export declare class Message implements Omit<PalmMessage, 'author'> {
         citationMetadata?: Message['citationMetadata'];
         content?: Message['content'];
         name?: Message['name'];
-        function_call?: Message['function_call'];
-        type?: Message['type'];
         tags?: Message['tags'];
         customProperties?: Message['customProperties'];
         isArchived?: Message['isArchived'];

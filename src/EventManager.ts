@@ -1,6 +1,9 @@
 import { SessionStorage } from './session/SessionStorage';
-import { ErrorHandler, OutputContext } from './@types';
-import { ChatCompletionCallInitiator } from './ChatCompletion';
+import {
+  ChatCompletionCallInitiator,
+  ErrorHandler,
+  OutputContext,
+} from './@types';
 import { getLogger } from './Logger';
 
 const l = getLogger('EventManager');
