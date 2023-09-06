@@ -1,6 +1,6 @@
 {
   "name": "@mocg/loft-palm",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "LLM-Orchestrator (LOFT) is a robust framework designed for high-throughput, scalable backend systems. It provides comprehensive features for handling chat completion, chat input/output middlewares, event detection, handling, and more. LOFT is independent of any HTTP framework. Built on a queue-based architecture, LOFT supports rate-limiting and horizontal scaling, making it ideal for large-scale deployments.",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
