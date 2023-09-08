@@ -11,14 +11,6 @@ LLM-Orchestrator (LOFT) is a robust framework designed for high-throughput, scal
 - **Event Detection and Handling**: Advanced capabilities for detecting and handling chat-based events.
 - **Rate-Limiting and Horizontal Scaling**: Built-in rate-limiting capabilities that work seamlessly in horizontally scaled environments.
 
-## Installation
-
-Install via npm:
-
-```bash
-npm install @mocg/loft-palm
-```
-
 ## Initial Setup
 
 1. Start by installing the LOFT library from the GitHub repository using npm.

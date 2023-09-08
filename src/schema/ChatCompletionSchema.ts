@@ -15,5 +15,4 @@ export const ChatCompletionInputSchema = z.object({
       (name) => redisKeyRegex.test(name),
       'Invalid systemMessages.name value. Allowed only alphanumeric characters (a-z, A-Z, 0-9) and the specified symbols (: . - _)',
     ),
-  intent: z.string(),
 });

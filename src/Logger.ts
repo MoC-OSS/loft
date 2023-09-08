@@ -1,6 +1,6 @@
 import pino, { Logger, LoggerOptions } from 'pino';
 // import * as path from 'path';
-import chalk from 'chalk';
+// import chalk from 'chalk';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -27,9 +27,9 @@ if (process.env.LLM_ORCHESTRATOR_ENV === 'development') {
       levelFirst: true,
       timestampKey: 'time',
       ignore: 'pid,hostname,path',
-      messageFormat: `${chalk.magentaBright(
-        '[{path}] [sessionId: {sessionId}, systemMessage: {systemMessageName}]',
-      )} {msg}`,
+      // messageFormat: `${chalk.magentaBright(
+      //   '[{path}] [sessionId: {sessionId}, systemMessage: {systemMessageName}]',
+      // )} {msg}`,
     },
   });
 }
