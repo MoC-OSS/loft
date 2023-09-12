@@ -1,8 +1,9 @@
 import { EventHandler, DefaultHandler } from './EventManager';
-import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, ErrorHandler, InputPayload, MiddlewareStatus, OutputContext, PromptComputer, SystemMessageComputer } from './@types/index';
+import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, ErrorHandler, MiddlewareStatus, OutputContext, PromptComputer, SystemMessageComputer } from './@types/index';
 import { SessionStorage } from './session/SessionStorage';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
+import { InputPayload } from './schema/ChatCompletionSchema';
 import { Session } from './session/Session';
 import { Message } from './session/Message';
 export declare class ChatCompletion {

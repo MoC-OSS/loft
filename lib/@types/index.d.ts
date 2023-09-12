@@ -1,6 +1,6 @@
+import { Session } from './../session/Session';
 import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { PromptType } from '../schema/PromptSchema';
-import { Session } from '../session/Session';
 import { ChatHistory } from '../session/ChatHistory';
 import { Message } from '../session/Message';
 export type PalmExample = {
@@ -24,21 +24,17 @@ export interface SessionProps {
         assistant: Message | null;
     };
     handlersCount: Record<string, number>;
-    ctx: Record<string, unknown>;
+    ctx: ContextRecord | {};
     messageAccumulator: Message[] | null;
     createdAt: number;
     updatedAt: number;
     lastError: string | null;
 }
-export interface InputPayload {
-    sessionId: string;
-    systemMessageName: string;
-    message: string;
-}
 export interface ChatInputPayload {
     sessionId: string;
     systemMessageName: string;
     messages: Message[];
+    ctx?: InputPayload['ctx'];
 }
 export declare enum ChatCompletionCallInitiator {
     main_flow = "MAIN_FLOW",
@@ -108,6 +104,7 @@ export type ErrorProperties = Partial<OutputContext> | {
 export type ErrorHandler = (error: Error | unknown, response?: ErrorProperties) => Promise<void>;
 import { protos } from '@google-ai/generativelanguage';
 import { PredictionResponse } from '../llm/Palm/@types/response';
+import { ContextRecord, InputPayload } from '../schema/ChatCompletionSchema';
 export type IGenerateMessageResponse = protos.google.ai.generativelanguage.v1beta2.IGenerateMessageResponse;
 export type IGenerateMessageRequest = protos.google.ai.generativelanguage.v1beta2.IGenerateMessageRequest;
 export type IMessagePrompt = protos.google.ai.generativelanguage.v1beta2.IMessagePrompt;

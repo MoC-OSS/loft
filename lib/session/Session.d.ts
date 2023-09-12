@@ -17,7 +17,7 @@ export declare class Session implements SessionProps {
         assistant: Message | null;
     };
     handlersCount: Record<string, number>;
-    ctx: Record<string, unknown>;
+    ctx: SessionProps['ctx'];
     messageAccumulator: Message[] | null;
     readonly createdAt: number;
     updatedAt: number;

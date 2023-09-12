@@ -9,9 +9,9 @@ export declare class SessionStorage {
     constructor(client: Redis | Cluster, sessionTtl: number, appName: string);
     private getChatCompletionSessionKey;
     isExists(sessionId: string, systemMessageName: string): Promise<boolean>;
-    createSession(sessionId: string, systemMessageName: string, systemMessage: string, model: string, modelPreset: SessionProps['modelPreset'], examples: SessionProps['examples'], messages: Message[]): Promise<void>;
-    appendMessages(sessionId: string, systemMessageName: string, newMessages: Message[]): Promise<void>;
-    appendMessagesToAccumulator(sessionId: string, systemMessageName: string, newMessages: Message[], session?: Session): Promise<void>;
+    createSession(sessionId: string, systemMessageName: string, systemMessage: string, model: string, modelPreset: SessionProps['modelPreset'], examples: SessionProps['examples'], messages: Message[], ctx?: SessionProps['ctx']): Promise<void>;
+    appendMessages(sessionId: string, systemMessageName: string, newMessages: Message[], ctx?: SessionProps['ctx']): Promise<void>;
+    appendMessagesToAccumulator(sessionId: string, systemMessageName: string, newMessages: Message[], session?: Session, ctx?: SessionProps['ctx']): Promise<void>;
     deleteSession(sessionId: string, systemMessageName: string): Promise<void>;
     deleteSessionsById(sessionId: string): Promise<void>;
     private findKeysByPartialName;
