@@ -38,14 +38,17 @@
     "@google-cloud/aiplatform": "^3.0.0",
     "@google-cloud/storage": "^7.0.1",
     "@types/luxon": "^3.3.2",
+    "@types/redlock": "^4.0.4",
     "axios": "^1.5.0",
     "bullmq": "^4.9.0",
     "chalk": "^5.3.0",
     "dotenv": "^16.3.1",
+    "ioredis": "^5.3.2",
     "luxon": "^3.4.3",
     "openai": "^4.4.0",
     "pino": "^8.15.0",
     "pino-pretty": "^10.2.0",
+    "redlock": "^5.0.0-beta.2",
     "uuid": "^9.0.0",
     "zod": "^3.22.2"
   }
