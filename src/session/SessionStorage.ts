@@ -45,6 +45,7 @@ export class SessionStorage {
     modelPreset: SessionProps['modelPreset'],
     examples: SessionProps['examples'],
     messages: Message[],
+    ctx?: SessionProps['ctx'],
   ): Promise<void> {
     const sessionKey = this.getChatCompletionSessionKey(
       sessionId,
@@ -71,7 +72,7 @@ export class SessionStorage {
         assistant: null,
       },
       handlersCount: {},
-      ctx: {},
+      ctx: ctx || {},
       messageAccumulator: [],
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -90,6 +91,7 @@ export class SessionStorage {
     sessionId: string,
     systemMessageName: string,
     newMessages: Message[],
+    ctx?: SessionProps['ctx'],
   ): Promise<void> {
     try {
       l.info(
@@ -114,6 +116,8 @@ export class SessionStorage {
         session.messageAccumulator = [];
       }
 
+      if (ctx) session.ctx = { ...session.ctx, ...ctx };
+
       await this.client.set(
         sessionKey,
         JSON.stringify(session),
@@ -131,6 +135,7 @@ export class SessionStorage {
     systemMessageName: string,
     newMessages: Message[],
     session?: Session,
+    ctx?: SessionProps['ctx'],
   ): Promise<void> {
     if (!session) {
       session = await this.getSession(sessionId, systemMessageName);
@@ -141,6 +146,8 @@ export class SessionStorage {
     }
 
     session.messageAccumulator.push(...newMessages);
+
+    if (ctx) session.ctx = { ...session.ctx, ...ctx };
 
     const sessionKey = this.getChatCompletionSessionKey(
       sessionId,

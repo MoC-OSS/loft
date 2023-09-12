@@ -1,6 +1,5 @@
 import {
   ChatInputPayload,
-  InputPayload,
   SystemMessageComputer,
   SystemMessageComputers,
 } from '../@types';

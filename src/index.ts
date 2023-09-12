@@ -3,9 +3,10 @@ export { EventHandler } from './EventManager';
 export { SystemMessageService } from './systemMessage/SystemMessageService';
 export { SystemMessageStorage } from './systemMessage/SystemMessageStorage';
 export { SystemMessageType } from './schema/CreateChatCompletionRequestSchema';
+export { PromptType } from './schema/PromptSchema';
+export { InputPayload } from './schema/ChatCompletionSchema';
 export { PromptService } from './prompt/PromptService';
 export { PromptStorage } from './prompt/PromptStorage';
-export { PromptType } from './schema/PromptSchema';
 export { S3Service } from './memory/aws/S3Service';
 export { CloudStorageService } from './memory/gcp/CloudStorageService';
 export { SessionStorage } from './session/SessionStorage';
@@ -14,7 +15,6 @@ export {
   Config,
   SystemMessageComputer,
   OutputContext,
-  InputPayload,
   SessionProps,
   ChatInputPayload,
   ErrorProperties,

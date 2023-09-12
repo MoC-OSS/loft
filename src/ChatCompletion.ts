@@ -6,7 +6,6 @@ import {
   ChatInputPayload,
   Config,
   ErrorHandler,
-  InputPayload,
   MiddlewareStatus,
   OutputContext,
   PromptComputer,
@@ -18,7 +17,10 @@ import { SessionStorage } from './session/SessionStorage';
 import { LlmIOManager } from './LlmIoManager';
 import { SystemMessageService } from './systemMessage/SystemMessageService';
 import { PromptService } from './prompt/PromptService';
-import { ChatCompletionInputSchema } from './schema/ChatCompletionSchema';
+import {
+  ChatCompletionInputSchema,
+  InputPayload,
+} from './schema/ChatCompletionSchema';
 import { getTimestamp, sanitizeAndValidateRedisKey } from './helpers';
 import { Session } from './session/Session';
 import { Message } from './session/Message';
@@ -146,6 +148,7 @@ export class ChatCompletion {
         sessionId: chatData.sessionId,
         systemMessageName: chatData.systemMessageName,
         messages: [message],
+        ctx: chatData.ctx,
       };
 
       l.info(`chatCompletion: creating job key...`);
@@ -494,7 +497,7 @@ export class ChatCompletion {
     const logPrefix = `sessionId: ${sessionId}, systemMessageName: ${systemMessageName} -`;
     try {
       l.info(`${logPrefix} begin processing input middlewares`);
-      const { messages: processedMessages } =
+      const { messages: processedMessages, ctx: InputContext } =
         await this.llmIOManager.executeInputMiddlewareChain(
           job.data as ChatInputPayload,
         );
@@ -515,6 +518,7 @@ export class ChatCompletion {
             systemMessageName,
             processedMessages,
             session,
+            InputContext,
           );
           l.info(`${logPrefix} messages appended to accumulator`);
           if (session.lastError !== null) {
@@ -542,6 +546,7 @@ export class ChatCompletion {
             sessionId,
             systemMessageName,
             processedMessages,
+            InputContext,
           );
         }
       } else {
@@ -557,6 +562,7 @@ export class ChatCompletion {
           modelPreset,
           examples,
           [...processedMessages],
+          InputContext,
         );
       }
 

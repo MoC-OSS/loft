@@ -20,7 +20,7 @@ export class Session implements SessionProps {
     assistant: Message | null;
   };
   handlersCount: Record<string, number>;
-  public ctx: Record<string, unknown>;
+  public ctx: SessionProps['ctx'];
   messageAccumulator: Message[] | null;
   readonly createdAt: number;
   updatedAt: number;
