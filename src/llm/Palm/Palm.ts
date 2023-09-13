@@ -1,6 +1,7 @@
 import { PredictionServiceClient, helpers } from '@google-cloud/aiplatform';
 import { Metadata, Prediction, PredictionResponse } from './@types/response';
 import { PredictionInstance, PredictionParameters } from './@types/request';
+import { cleanObject } from '../../helpers';
 
 // const palm = new Palm('gcp-project-name', 'model-name');
 //   const instance: PredictionInstance = {
@@ -40,8 +41,8 @@ export class Palm {
     const endpoint = this.getEndpoint(model);
     const request = {
       endpoint,
-      instances: [helpers.toValue(instance)],
-      parameters: helpers.toValue(parameters),
+      instances: [helpers.toValue(cleanObject(instance))],
+      parameters: helpers.toValue(cleanObject(parameters)),
     };
 
     try {

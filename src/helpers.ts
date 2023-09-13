@@ -81,3 +81,19 @@ export function modifyContentOfChoiceByIndex(
     choiceMessage.content = newContent;
   }
 }
+
+type NullableObject = { [key: string]: any };
+
+export function cleanObject(obj: NullableObject): NullableObject {
+  for (const key in obj) {
+    if (obj[key] === null || obj[key] === undefined) {
+      delete obj[key];
+    } else if (typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+      obj[key] = cleanObject(obj[key]);
+      if (Object.keys(obj[key]).length === 0) {
+        delete obj[key];
+      }
+    }
+  }
+  return obj;
+}
