@@ -8,13 +8,13 @@ export declare const ChatCompletionInputSchema: z.ZodObject<{
     ctx: z.ZodOptional<ZodType<Record<string, unknown>, z.ZodTypeDef, Record<string, unknown>>>;
 }, "strip", z.ZodTypeAny, {
     message: string;
-    sessionId: string;
     systemMessageName: string;
+    sessionId: string;
     ctx?: Record<string, unknown> | undefined;
 }, {
     message: string;
-    sessionId: string;
     systemMessageName: string;
+    sessionId: string;
     ctx?: Record<string, unknown> | undefined;
 }>;
 export type InputPayload = z.infer<typeof ChatCompletionInputSchema>;

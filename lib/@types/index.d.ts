@@ -1,23 +1,15 @@
 import { Session } from './../session/Session';
-import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
+import { PalmExamples, SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { PromptType } from '../schema/PromptSchema';
 import { ChatHistory } from '../session/ChatHistory';
 import { Message } from '../session/Message';
-export type PalmExample = {
-    input: {
-        content: string;
-    };
-    output: {
-        content: string;
-    };
-};
 export interface SessionProps {
     sessionId: string;
     systemMessageName: string;
     systemMessage: string;
     modelPreset: SystemMessageType['modelPreset'];
     messages: ChatHistory;
-    examples: PalmExample[];
+    examples: PalmExamples;
     model: string;
     lastMessageByRole: {
         user: Message | null;

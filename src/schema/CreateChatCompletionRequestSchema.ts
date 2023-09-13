@@ -25,7 +25,7 @@ const SystemMessageSchema = z.object({
       'Invalid systemMessages.name value. Allowed only alphanumeric characters (a-z, A-Z, 0-9) and the specified symbols (: . - _)',
     ),
   systemMessage: z.string(),
-  examples: z.array(ExampleSchema),
+  examples: z.array(ExampleSchema).optional(),
   model: z.string(),
   modelPreset: ModelPresetSchema,
 });
@@ -42,3 +42,6 @@ export type CreateChatCompletionRequestType = z.infer<
 
 export type SystemMessageType =
   CreateChatCompletionRequestType['systemMessages'][number];
+
+export type PalmExample = z.infer<typeof ExampleSchema>;
+export type PalmExamples = SystemMessageType['examples'];

@@ -1,6 +1,9 @@
-import { PalmExample, SessionProps } from './../@types';
+import { SessionProps } from './../@types';
 import { SessionStorage } from './SessionStorage';
-import { SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
+import {
+  PalmExamples,
+  SystemMessageType,
+} from '../schema/CreateChatCompletionRequestSchema';
 import { ChatHistory } from './ChatHistory';
 import { getLogger } from './../Logger';
 import { Message } from './Message';
@@ -14,7 +17,7 @@ export class Session implements SessionProps {
   readonly model: string;
   readonly modelPreset: SystemMessageType['modelPreset'];
   messages: ChatHistory;
-  readonly examples: PalmExample[];
+  readonly examples: PalmExamples;
   lastMessageByRole: {
     user: Message | null;
     assistant: Message | null;
