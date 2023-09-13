@@ -20,7 +20,7 @@ export interface SessionProps {
     assistant: Message | null;
   };
   handlersCount: Record<string, number>;
-  ctx: ContextRecord | {};
+  ctx: ContextRecord;
   messageAccumulator: Message[] | null;
   createdAt: number;
   updatedAt: number;

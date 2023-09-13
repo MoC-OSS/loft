@@ -3,6 +3,7 @@ import { SessionStorage } from './SessionStorage';
 import { PalmExamples, SystemMessageType } from '../schema/CreateChatCompletionRequestSchema';
 import { ChatHistory } from './ChatHistory';
 import { Message } from './Message';
+import { ContextRecord } from '../schema/ChatCompletionSchema';
 export declare class Session implements SessionProps {
     private readonly sessionStorage;
     readonly sessionId: string;
@@ -17,7 +18,7 @@ export declare class Session implements SessionProps {
         assistant: Message | null;
     };
     handlersCount: Record<string, number>;
-    ctx: SessionProps['ctx'];
+    ctx: ContextRecord;
     messageAccumulator: Message[] | null;
     readonly createdAt: number;
     updatedAt: number;

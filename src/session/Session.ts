@@ -7,6 +7,7 @@ import {
 import { ChatHistory } from './ChatHistory';
 import { getLogger } from './../Logger';
 import { Message } from './Message';
+import { ContextRecord } from '../schema/ChatCompletionSchema';
 
 const l = getLogger('Session');
 
@@ -23,7 +24,7 @@ export class Session implements SessionProps {
     assistant: Message | null;
   };
   handlersCount: Record<string, number>;
-  public ctx: SessionProps['ctx'];
+  public ctx: ContextRecord;
   messageAccumulator: Message[] | null;
   readonly createdAt: number;
   updatedAt: number;
