@@ -4,10 +4,14 @@
   "description": "LLM-Orchestrator (LOFT) is a robust framework designed for high-throughput, scalable backend systems. It provides comprehensive features for handling chat completion, chat input/output middlewares, event detection, handling, and more. LOFT is independent of any HTTP framework. Built on a queue-based architecture, LOFT supports rate-limiting and horizontal scaling, making it ideal for large-scale deployments.",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "rimraf lib && tsc -p tsconfig.json",
-    "continues:build": "rimraf lib && tsc -p tsconfig.json --watch",
+    "clean": "rimraf lib",
+    "compile": "cross-env-shell babel src -d lib --source-maps --extensions '.ts'",
+    "compile-watch": "cross-env-shell babel src --watch -d lib --source-maps --extensions '.ts'",
+    "build": "npm run clean && npm run compile && tsc --emitDeclarationOnly",
+    "continues:build": "npm run clean && npm run compile-watch && tsc --emitDeclarationOnly --watch",
     "publish:public": "npx auto-version --patch && npm publish --access public"
   },
   "repository": {
@@ -34,6 +38,10 @@
   ],
   "dependencies": {
     "@aws-sdk/client-s3": "^3.405.0",
+    "@babel/cli": "^7.22.15",
+    "@babel/core": "^7.22.17",
+    "@babel/preset-env": "^7.22.15",
+    "@babel/preset-typescript": "^7.22.15",
     "@google-ai/generativelanguage": "^1.0.0",
     "@google-cloud/aiplatform": "^3.0.0",
     "@google-cloud/storage": "^7.0.1",
@@ -41,6 +49,7 @@
     "axios": "^1.5.0",
     "bullmq": "^4.9.0",
     "chalk": "^5.3.0",
+    "cross-env": "^7.0.3",
     "dotenv": "^16.3.1",
     "luxon": "^3.4.3",
     "openai": "^4.4.0",
