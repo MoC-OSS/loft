@@ -2,8 +2,12 @@ import typescript from '@rollup/plugin-typescript';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
-import nodePolyfills from 'rollup-plugin-node-polyfills';
+import nodeExternals from 'rollup-plugin-node-externals'
+import globals from 'rollup-plugin-node-globals';
+// import builtins from 'rollup-plugin-node-builtins';
+// import nodePolyfills from 'rollup-plugin-node-polyfills';
 // import nodePolyfills from 'rollup-plugin-polyfill-node';
+
 
 export default {
   input: 'src/index.ts',
@@ -32,10 +36,15 @@ export default {
   ],
   plugins: [
     typescript({outputToFilesystem: true}),
-    resolve({preferBuiltins: true, browser: false }),
-    commonjs({transformMixedEsModules: true}),
+    nodeExternals(),
+    globals(),
+    // builtins({crypto:  true}),
+    // resolve({preferBuiltins: true, browser: false }),
+    resolve({ browser: false }),
     json(),
-    nodePolyfills(/* ["os", "events", "fs", "util", "path", "worker_threads", "module", "url", "buffer", "assert", "child_process", "net", "tty", "stream", "crypto", "dns", "tls", "string_decoder", "http", "https", "zlib", "http2", "punycode", "querystring", "process"] */),
+    commonjs(),
+    // commonjs({transformMixedEsModules: true}),
+    // nodePolyfills(["os", "events", "fs", "util", "path", "worker_threads", "module", "url", "buffer", "assert", "child_process", "net", "tty", "stream", "crypto", "dns", "tls", "string_decoder", "http", "https", "zlib", "http2", "punycode", "querystring", "process"]),
   ],
   // external: ,
   treeshake: true,
