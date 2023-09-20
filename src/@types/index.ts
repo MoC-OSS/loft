@@ -52,9 +52,6 @@ export type IOContext = ChatInputPayload | OutputContext;
 export interface Config {
   nodeEnv: string;
   appName: string;
-  redisHost: string;
-  redisPort: number;
-  bullMqDb: number;
   llmRateLimiter: {
     /**
      * Max number of jobs to process in the time period

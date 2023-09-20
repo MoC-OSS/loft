@@ -1,3 +1,4 @@
+import { Redis, Cluster } from 'ioredis';
 import { EventHandler, DefaultHandler } from './EventManager';
 import { AsyncLLMInputMiddleware, AsyncLLMOutputMiddleware, Config, ErrorHandler, MiddlewareStatus, OutputContext, PromptComputer, SystemMessageComputer } from './@types/index';
 import { SessionStorage } from './session/SessionStorage';
@@ -11,6 +12,7 @@ export declare class ChatCompletion {
     private readonly sms;
     private readonly ps;
     private readonly hs;
+    private readonly connection;
     private readonly errorHandler;
     private readonly eventManager;
     private readonly llmIOManager;
@@ -20,7 +22,7 @@ export declare class ChatCompletion {
     private readonly llmApiCallQueue;
     private readonly llmApiCallWorker;
     private constructor();
-    static createInstance(cfg: Config, sms: SystemMessageService, ps: PromptService, hs: SessionStorage, errorHandler: ErrorHandler): Promise<ChatCompletion>;
+    static createInstance(cfg: Config, sms: SystemMessageService, ps: PromptService, hs: SessionStorage, connection: Redis | Cluster, errorHandler: ErrorHandler): Promise<ChatCompletion>;
     private initialize;
     call(data: InputPayload): Promise<void>;
     injectPromptAndSend(promptName: string, session: Session, messages: Message[], promptRole: 'user' | 'assistant'): Promise<void>;
