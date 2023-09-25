@@ -55,9 +55,6 @@ export type IOContext = ChatInputPayload | OutputContext;
 export interface Config {
   nodeEnv: string;
   appName: string;
-  redisHost: string;
-  redisPort: number;
-  bullMqDb: number;
   openAiKey: string;
   openAiRateLimiter: {
     /**

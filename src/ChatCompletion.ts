@@ -1,3 +1,5 @@
+import { Redis, Cluster } from 'ioredis';
+
 import { EventHandler, EventManager, DefaultHandler } from './EventManager';
 import {
   AsyncLLMInputMiddleware,
@@ -56,6 +58,7 @@ export class ChatCompletion {
     private readonly sms: SystemMessageService,
     private readonly ps: PromptService,
     private readonly hs: SessionStorage,
+    private readonly connection: Redis | Cluster,
     private readonly errorHandler: ErrorHandler,
   ) {
     this.eventManager = new EventManager(this.hs, this.errorHandler);
@@ -69,11 +72,7 @@ export class ChatCompletion {
 
     l.info('ChatCompletion: completionQueue initialization...');
     this.completionQueue = new Queue('chatCompletionQueue', {
-      connection: {
-        host: this.cfg.redisHost,
-        port: this.cfg.redisPort,
-        db: this.cfg.bullMqDb,
-      },
+      connection,
     });
 
     l.info('ChatCompletion: completionWorker definition...');
@@ -81,11 +80,7 @@ export class ChatCompletion {
       'chatCompletionQueue',
       async (job) => this.chatCompletionBeginProcessor(job),
       {
-        connection: {
-          host: this.cfg.redisHost,
-          port: this.cfg.redisPort,
-          db: this.cfg.bullMqDb,
-        },
+        connection,
         autorun: false,
         lockDuration: this.cfg.jobsLockDuration || 60000, // 1 minute by default
       },
@@ -93,11 +88,7 @@ export class ChatCompletion {
 
     l.info('ChatCompletion: llmApiCallQueue initialization...');
     this.llmApiCallQueue = new Queue('llmApiCallQueue', {
-      connection: {
-        host: this.cfg.redisHost,
-        port: this.cfg.redisPort,
-        db: this.cfg.bullMqDb,
-      },
+      connection,
     });
 
     l.info('ChatCompletion: llmApiCallWorker definition...');
@@ -110,11 +101,7 @@ export class ChatCompletion {
           duration: this.cfg.openAiRateLimiter.duration,
         },
         concurrency: this.cfg.openAiRateLimiter.concurrency,
-        connection: {
-          host: this.cfg.redisHost,
-          port: this.cfg.redisPort,
-          db: this.cfg.bullMqDb,
-        },
+        connection,
         autorun: false,
         lockDuration: this.cfg.jobsLockDuration || 60000, // 1 minute by default
       },
@@ -129,10 +116,18 @@ export class ChatCompletion {
     sms: SystemMessageService,
     ps: PromptService,
     hs: SessionStorage,
+    connection: Redis | Cluster,
     errorHandler: ErrorHandler,
   ): Promise<ChatCompletion> {
     l.info('Creating ChatCompletion instance...');
-    const instance = new ChatCompletion(cfg, sms, ps, hs, errorHandler);
+    const instance = new ChatCompletion(
+      cfg,
+      sms,
+      ps,
+      hs,
+      connection,
+      errorHandler,
+    );
     await instance.initialize();
     return instance;
   }
