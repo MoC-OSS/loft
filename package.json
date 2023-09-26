@@ -1,6 +1,6 @@
 {
-  "name": "llm-orchestrator",
-  "version": "1.0.6",
+  "name": "@mocg/loft-openai",
+  "version": "1.0.0",
   "description": "llm-orchestrator library",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
@@ -29,6 +29,7 @@
     "@types/luxon": "^3.3.1",
     "axios": "^1.4.0",
     "bullmq": "^4.6.2",
+    "chalk": "^4.1.2",
     "dotenv": "^16.3.1",
     "luxon": "^3.3.0",
     "openai": "^3.3.0",
