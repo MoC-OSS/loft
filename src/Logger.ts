@@ -1,5 +1,4 @@
 import pino, { Logger, LoggerOptions } from 'pino';
-// import * as path from 'path';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -35,8 +34,6 @@ if (process.env.LLM_ORCHESTRATOR_ENV === 'development') {
 const baseLogger = pino(loggerOptions, transport);
 
 export function getLogger(name: string): Logger {
-  // const pathToFile = path.relative(process.cwd(), name); // const l = getLogger(__dirname);
-
   return baseLogger.child({
     path: name,
   });

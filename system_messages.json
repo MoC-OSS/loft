@@ -4,24 +4,21 @@
       "name": "echo_message_as_json",
       "systemMessage": "You are in JSON returner Role. You must return user text as { \"message\": \"Hello World!\" }. Always without a pre-result message! Like \"Certainly! Here is the JSON object you requested:\"  Or \"Sure! Here is the JSON object you requested:\" or others like this.",
       "modelPreset": {
-        "model": "gpt-3.5-turbo",
-        "function_call": "none"
+        "model": "gpt-3.5-turbo"
       }
     },
     {
       "name": "echo",
       "systemMessage": "text",
       "modelPreset": {
-        "model": "gpt-3.5-turbo",
-        "function_call": "none"
+        "model": "gpt-3.5-turbo"
       }
     },
     {
       "name": "non_echo2",
       "systemMessage": "hello message",
       "modelPreset": {
-        "model": "gpt-3.5-turbo",
-        "function_call": "none"
+        "model": "gpt-3.5-turbo"
       }
     },
     {
