@@ -39,82 +39,91 @@ LLM-Orchestrator (LOFT) is a robust framework designed for high-throughput, scal
 
 2. Next, create an instance of the LLM-Orchestrator, passing the `Config` object to the `LlmOrchestrator.createInstance()` method.
 
-   ```js
-   import {
-     LlmOrchestrator,
-     Config,
-     SystemMessageType,
-     EventHandler,
-     SystemMessageStorage,
-     SystemMessageService,
-     HistoryStorage,
-     S3Service,
-   } from '@mocg/loft-openai';
-   import Redis from 'ioredis';
-
-   import { cfg } from './config/env';
-
-   const systemMessageClient = new Redis({
-     host: cfg.REDIS_HOST,
-     port: cfg.REDIS_PORT,
-     db: cfg.SYSTEM_MESSAGE_DB,
-   });
-   const systemMessageStorage = new SystemMessageStorage(systemMessageClient);
-
-   const s3 = new S3Service(
-     cfg.NODE_ENV,
-     cfg.S3_REGION,
-     cfg.S3_BUCKET_NAME,
-     cfg.APP_NAME,
-   );
-
-   const sms = new SystemMessageService(systemMessageStorage, s3);
-
-   const historyClient = new Redis({
-     host: cfg.REDIS_HOST,
-     port: cfg.REDIS_PORT,
-     db: cfg.HISTORY_DB,
-   });
-   const hs = new SessionStorage(historyClient, 24 * 60 * 60, cfg.APP_NAME);
-
-   function chatCompletionErrHandler(
-     error: Error | unknown,
-     llmResponse: ErrorProperties,
-   ) {
-     console.log('ERROR HANDLER: ', error);
-   }
-
-   const chat = await LlmOrchestrator.createInstance(
-     {
-       nodeEnv: cfg.NODE_ENV,
-       appName: cfg.APP_NAME,
-       redisHost: cfg.REDIS_HOST,
-       redisPort: cfg.REDIS_PORT,
-       bullMqDb: cfg.BULLMQ_DB,
-       openAiKey: cfg.OPENAI_API_KEY,
-       openAiRateLimiter: {
-         max: cfg.OPENAI_MAX_REQ_BY_DURATION,
-         duration: cfg.OPENAI_DURATION,
-         concurrency: cfg.OPENAI_CONCURRENCY,
-       },
-       jobsLockDuration: cfg.JOBS_LOCK_DURATION,
-       jobsAttempts: cfg.JOBS_ATTEMPTS,
-       chatCompletionJobCallAttempts: cfg.CHAT_COMPLETION_JOB_CALL_ATTEMPTS,
-     },
-     sms,
-     ps,
-     hs,
-     chatCompletionErrHandler,
-   );
-   ```
-
 ## Requirements
 
 The Loft requires several resources, such as Redis, OpenAI, and S3, to function properly.
 
+```js
+import {
+  ChatCompletion,
+  SystemMessageStorage,
+  SystemMessageService,
+  SessionStorage,
+  S3Service,
+  ErrorProperties,
+  PromptStorage,
+  PromptService,
+} from '@mocg/loft-openai';
+
+import express from 'express';
+import Redis from 'ioredis';
+
+import { cfg } from './config/env';
+
+const systemMessageClient = new Redis({
+  host: cfg.REDIS_HOST,
+  port: cfg.REDIS_PORT,
+  db: cfg.SYSTEM_MESSAGE_DB,
+});
+const systemMessageStorage = new SystemMessageStorage(systemMessageClient);
+
+const s3 = new S3Service(
+  cfg.NODE_ENV,
+  cfg.S3_REGION,
+  cfg.S3_BUCKET_NAME,
+  cfg.APP_NAME,
+);
+
+const sms = new SystemMessageService(systemMessageStorage, s3);
+
+const historyClient = new Redis({
+  host: cfg.REDIS_HOST,
+  port: cfg.REDIS_PORT,
+  db: cfg.HISTORY_DB,
+});
+const hs = new SessionStorage(historyClient, 24 * 60 * 60, cfg.APP_NAME);
+const promptClient = new Redis({
+  host: cfg.REDIS_HOST,
+  port: cfg.REDIS_PORT,
+  db: cfg.PROMPT_DB,
+});
+const promptStorage = new PromptStorage(promptClient);
+const ps = new PromptService(promptStorage, s3);
+
+async function chatCompletionErrHandler(
+  error: Error | unknown,
+  llmResponse: ErrorProperties,
+) {
+  console.log('ERROR HANDLER: ', error);
+}
+// init chat as let variable before
+chat = await ChatCompletion.createInstance(
+  {
+    nodeEnv: cfg.NODE_ENV,
+    appName: cfg.APP_NAME,
+    redisHost: cfg.REDIS_HOST,
+    redisPort: cfg.REDIS_PORT,
+    bullMqDb: cfg.BULLMQ_DB,
+    openAiKey: cfg.OPENAI_API_KEY,
+    openAiRateLimiter: {
+      max: cfg.OPENAI_MAX_REQ_BY_DURATION,
+      duration: cfg.OPENAI_DURATION,
+      concurrency: cfg.OPENAI_CONCURRENCY,
+    },
+    jobsLockDuration: cfg.JOBS_LOCK_DURATION,
+    jobsAttempts: cfg.JOBS_ATTEMPTS,
+    chatCompletionJobCallAttempts: cfg.CHAT_COMPLETION_JOB_CALL_ATTEMPTS,
+  },
+  sms,
+  ps,
+  hs,
+  chatCompletionErrHandler,
+);
+```
+
 ## Setting Up Endpoints
 
-3. Establish a `chatCompletion` endpoint for your backend. This endpoint will take a `request.body` as input and pass it to the created LLM Orchestrator instance.
+3. Establish a `chatCompletion` endpoint for your backend. This endpoint will take a `request.body` as input and pass it to the created ChatCompletion instance.
 
    ```js
    // chatCompletionSchema: {
@@ -160,7 +169,7 @@ The Loft requires several resources, such as Redis, OpenAI, and S3, to function 
 5. Optional: Register ComputeSystemMessage() callback for each SystemMessage from the system_messages.json file that needs rendering.
 
 ```js
-llm.useComputeSystemMessage(
+chat.useComputeSystemMessage(
   'echo message as json', // system message name must be the same as in system_messages.json file
   async (input: SystemMessageType): Promise<SystemMessageType> => {
     // modify input here
@@ -322,7 +331,7 @@ chat.useComputePrompt(
 8. Register the DefaultHandler() callback for handling unexpected events or responses based on LLM responses.
 
    ```js
-   llm.useDefaultHandler(async (llmResponse: string) => {
+   chat.useDefaultHandler(async (llmResponse: string) => {
      // handle unexpected response here
      console.log('DEFAULT HANDLER RESPONSE: ', llmResponse);
    });

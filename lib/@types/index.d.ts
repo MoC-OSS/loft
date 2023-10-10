@@ -29,6 +29,7 @@ export interface InputPayload {
     sessionId: string;
     systemMessageName: string;
     message: string;
+    intent: string;
 }
 export interface ChatInputPayload {
     sessionId: string;
