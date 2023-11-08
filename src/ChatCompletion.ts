@@ -27,6 +27,7 @@ import { Session } from './session/Session';
 import { Message } from './session/Message';
 import { getLogger } from './Logger';
 import { Palm } from './llm/Palm/Palm';
+import { config } from 'dotenv';
 
 const l = getLogger('ChatCompletion');
 
@@ -51,7 +52,7 @@ export class ChatCompletion {
   ) {
     this.eventManager = new EventManager(this.hs, this.errorHandler);
     this.llmIOManager = new LlmIOManager();
-    this.llm = new Palm('master-of-code-sandbox');
+    this.llm = new Palm(cfg.llmProjectId);
 
     l.info('ChatCompletion: completionQueue initialization...');
     this.completionQueue = new Queue('chatCompletionQueue', {

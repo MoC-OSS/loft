@@ -52,6 +52,7 @@ export type IOContext = ChatInputPayload | OutputContext;
 export interface Config {
   nodeEnv: string;
   appName: string;
+  llmProjectId: string;
   llmRateLimiter: {
     /**
      * Max number of jobs to process in the time period
