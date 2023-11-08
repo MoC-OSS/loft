@@ -27,7 +27,6 @@ import { Session } from './session/Session';
 import { Message } from './session/Message';
 import { getLogger } from './Logger';
 import { Palm } from './llm/Palm/Palm';
-import { config } from 'dotenv';
 
 const l = getLogger('ChatCompletion');
 
