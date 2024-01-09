@@ -365,6 +365,7 @@ export class ChatCompletion {
           messages: session.messages.formatToLLM(),
         },
         session.modelPreset,
+        session.model
       );
 
       const ccm = chatCompletion.predictions[0].candidates[0];
