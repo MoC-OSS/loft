@@ -1,8 +1,8 @@
 import { PalmMessage } from '../../../@types';
 
 interface Example {
-  input: { content: string };
-  output: { content: string };
+  input: { content: string; author?: string };
+  output: { content: string; author?: string };
 }
 
 export interface PredictionInstance {

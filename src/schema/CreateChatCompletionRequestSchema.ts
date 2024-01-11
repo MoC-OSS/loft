@@ -11,9 +11,11 @@ const ModelPresetSchema = z.object({
 const ExampleSchema = z.object({
   input: z.object({
     content: z.string(),
+    author: z.string().optional(),
   }),
   output: z.object({
     content: z.string(),
+    author: z.string().optional(),
   }),
 });
 
