@@ -8,10 +8,9 @@ export declare class S3Service {
     private readonly appName;
     private readonly client;
     constructor(env: string, region: string, bucketName: string, appName: string);
-    getFile(filename: string): Promise<(import("stream").Readable & import("@smithy/types").SdkStreamMixin) | (ReadableStream<any> & import("@smithy/types").SdkStreamMixin) | (Blob & import("@smithy/types").SdkStreamMixin) | null | undefined>;
+    getFile(filename: string): Promise<(import("stream").Readable & import("@smithy/types").SdkStreamMixin) | (Blob & import("@smithy/types").SdkStreamMixin) | (ReadableStream<any> & import("@smithy/types").SdkStreamMixin) | null | undefined>;
     getSystemMessages(): Promise<CreateChatCompletionRequestType>;
     getPrompts(): Promise<PromptsFileType>;
     logToS3(data: string): Promise<void>;
-    private getS3LogFileParams;
 }
 //# sourceMappingURL=S3Service.d.ts.map

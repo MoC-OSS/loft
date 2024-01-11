@@ -2,7 +2,6 @@ import {
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
-  PutBucketLifecycleConfigurationCommand,
   S3ServiceException,
 } from '@aws-sdk/client-s3';
 import {
@@ -26,10 +25,6 @@ export class S3Service {
     l.info('S3Service initialization...');
     this.client = new S3Client({ region: this.region });
     l.info(`Put Bucket Lifecycle Configuration to error log files...`);
-    const command = new PutBucketLifecycleConfigurationCommand(
-      this.getS3LogFileParams(),
-    );
-    this.client.send(command);
   }
 
   async getFile(filename: string) {
@@ -111,26 +106,5 @@ export class S3Service {
     });
 
     await this.client.send(command).catch((err) => l.error(err));
-  }
-
-  private getS3LogFileParams() {
-    l.info('render S3 log file params...');
-    return {
-      Bucket: this.bucketName,
-      LifecycleConfiguration: {
-        Rules: [
-          {
-            ID: 'Delete log_*.txt after 30 days',
-            Status: 'Enabled',
-            Filter: {
-              Prefix: 'log_',
-            },
-            Expiration: {
-              Days: 30,
-            },
-          },
-        ],
-      },
-    };
   }
 }
