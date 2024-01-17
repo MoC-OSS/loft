@@ -9,7 +9,7 @@ export enum MessageType {
 
 export class Message implements Omit<PalmMessage, 'author'> {
   id: string;
-  author: 'user' | 'assistant';
+  author: 'user' | 'bot';
   citationMetadata?: PalmMessage['citationMetadata'];
   content?: string;
   name?: string;

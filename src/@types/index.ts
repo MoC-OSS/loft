@@ -17,7 +17,7 @@ export interface SessionProps {
   model: string;
   lastMessageByRole: {
     user: Message | null;
-    assistant: Message | null;
+    bot: Message | null;
   };
   handlersCount: Record<string, number>;
   ctx: ContextRecord;

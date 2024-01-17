@@ -21,7 +21,7 @@ export class Session implements SessionProps {
   readonly examples: PalmExamples;
   lastMessageByRole: {
     user: Message | null;
-    assistant: Message | null;
+    bot: Message | null;
   };
   handlersCount: Record<string, number>;
   public ctx: ContextRecord;

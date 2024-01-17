@@ -171,7 +171,7 @@ export class ChatCompletion {
     promptName: string,
     session: Session,
     messages: Message[],
-    promptRole: 'user' | 'assistant',
+    promptRole: 'user' | 'bot',
   ) {
     const { sessionId, systemMessageName } = session;
 
@@ -365,7 +365,7 @@ export class ChatCompletion {
           messages: session.messages.formatToLLM(),
         },
         session.modelPreset,
-        session.model
+        session.model,
       );
 
       const ccm = chatCompletion.predictions[0].candidates[0];
@@ -393,7 +393,7 @@ export class ChatCompletion {
 
       const responseMessage = new Message({
         content: ccm.content,
-        author: ccm.author as 'user' | 'assistant',
+        author: 'bot' as 'user' | 'bot',
       });
       await this.hs.appendMessages(sessionId, systemMessageName, [
         responseMessage,

@@ -69,7 +69,7 @@ export class SessionStorage {
       examples,
       lastMessageByRole: {
         user: userMessage,
-        assistant: null,
+        bot: null,
       },
       handlersCount: {},
       ctx: ctx || {},
